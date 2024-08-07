@@ -22,12 +22,16 @@ def index():
     logging.warning("See this message in Flask Debug Toolbar!")
     return "<html><body>boo</body></html>"
 
-    # nw = (601158.9, 261757.9) # north west
-    # se = (601205.6, 261660.2) # south east
 
 """
     returns a list of nas-las files which can be found on the nas in the folder:
         /08. Researchers/tom/a14/las_chunks
+
+    for example, with the coords (epsg:27700)
+     nw = (601158.9, 261757.9) # north west
+     se = (601205.6, 261660.2) # south east
+     
+     we call:
         
     /v0/find-las?n=601158.9&w=261757.9&s=601205.6&e=261660.2
 """
