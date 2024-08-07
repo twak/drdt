@@ -20,7 +20,7 @@ curs = conn.cursor()
 @app.route('/')
 def index():
     logging.warning("See this message in Flask Debug Toolbar!")
-    return "<html><body>boo</body></html>"
+    return "<html><body>i am digital twin</body></html>"
 
 
 """
