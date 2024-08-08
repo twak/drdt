@@ -5,6 +5,9 @@ from shapely.geometry import LineString
 from shapely import wkb
 import urllib.request
 import json
+
+import api.utils as utils
+
 # import requests
 
 app = Flask(__name__)
@@ -12,11 +15,9 @@ app.debug = True
 
 # coordinates of the rectangle. You can explore these by using QGIS, or https://digimap.edina.ac.uk/roam/map/os and clicking
 
-with open ("api/pwd.json") as fp:
-    pwp = json.load(fp)
 
-conn = psycopg2.connect(dbname=pwp['dbname'], user=pwp['user'], password=pwp['password'], host=pwp['host'])
-curs = conn.cursor()
+curs = utils.create_postgres_connection()
+
 
 def get_nsew(other=[],opt={}):
     vals = {}
