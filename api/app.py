@@ -84,29 +84,46 @@ def find_las():
 """
     returns a section of the orthomosaic at resolution width x height for given 27700 area
      
-    /v0/find-png?n=601158.9&w=261757.9&s=601205.6&e=261660.2&width=100&height=200
+    /v0/pavement?n=601158.9&w=261757.9&s=601205.6&e=261660.2&scale=10
 """
 
-@app.route("/v0/pavement-img")
+@app.route("/v0/pavement")
 def find_pavement():
 
-    vals = get_nsew(opt={"width":100, "height":100})
+    vals = get_nsew(opt={"scale":1})
+    if isinstance(vals, str):
+        return vals # error
     for k in vals.keys():
         print(f"{k} {vals[k]}")
+
+    height = (float (vals['w']) - float(vals['e'])) * float(vals['scale'])
+    width  = (float(vals['s']) - float(vals['n'])) * float(vals['scale'])
 
     return redirect(f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
                         f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_pavement_orthomosaics&exceptions=application%2Fvnd.ogc.se_inimage&"
-                        f"SRS=EPSG%3A27700&WIDTH={vals['width']}&HEIGHT={vals['height']}"
+                        f"SRS=EPSG%3A27700&WIDTH={int(width)}&HEIGHT={int(height)}"
                         f"&BBOX={vals['n']}%2C{vals['e']}%2C{vals['s']}%2C{vals['w']}", code=302)
 
-@app.route("/v0/aerial-img")
+
+"""
+    returns a section of the orthomosaic at resolution width x height for given 27700 area
+
+    /v0/aerial?n=601158.9&w=261757.9&s=601205.6&e=261660.2&scale=10
+"""
+
+@app.route("/v0/aerial")
 def find_aerial():
 
-    vals = get_nsew(opt={"width":100, "height":100})
+    vals = get_nsew(opt={"scale":10})
+    if isinstance(vals, str):
+        return vals # error
     for k in vals.keys():
         print(f"{k} {vals[k]}")
 
+    height = (float (vals['w']) - float(vals['e'])) * float(vals['scale'])
+    width  = (float(vals['s']) - float(vals['n'])) * float(vals['scale'])
+
     return redirect(f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
                         f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_aerial&exceptions=application%2Fvnd.ogc.se_inimage&"
-                        f"SRS=EPSG%3A27700&WIDTH={vals['width']}&HEIGHT={vals['height']}"
+                        f"SRS=EPSG%3A27700&WIDTH={int(width)}&HEIGHT={int(height)}"
                         f"&BBOX={vals['n']}%2C{vals['e']}%2C{vals['s']}%2C{vals['w']}", code=302)
