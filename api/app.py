@@ -88,7 +88,7 @@ def find_las():
 """
 
 @app.route("/v0/pavement-img")
-def find_texture():
+def find_pavement():
 
     vals = get_nsew(opt={"width":100, "height":100})
     for k in vals.keys():
@@ -100,7 +100,7 @@ def find_texture():
                         f"&BBOX={vals['n']}%2C{vals['e']}%2C{vals['s']}%2C{vals['w']}", code=302)
 
 @app.route("/v0/aerial-img")
-def find_texture():
+def find_aerial():
 
     vals = get_nsew(opt={"width":100, "height":100})
     for k in vals.keys():
