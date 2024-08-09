@@ -1,3 +1,6 @@
+import json
+import psycopg2
+
 def create_postgres_connection():
     global curs
     with open("api/pwd.json") as fp:

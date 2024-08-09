@@ -87,7 +87,7 @@ def find_las():
     /v0/find-png?n=601158.9&w=261757.9&s=601205.6&e=261660.2&width=100&height=200
 """
 
-@app.route("/v0/find-png")
+@app.route("/v0/pavement-img")
 def find_texture():
 
     vals = get_nsew(opt={"width":100, "height":100})
@@ -95,8 +95,18 @@ def find_texture():
         print(f"{k} {vals[k]}")
 
     return redirect(f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
-                        f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3Ageotiffs&exceptions=application%2Fvnd.ogc.se_inimage&"
+                        f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_pavement_orthomosaics&exceptions=application%2Fvnd.ogc.se_inimage&"
                         f"SRS=EPSG%3A27700&WIDTH={vals['width']}&HEIGHT={vals['height']}"
                         f"&BBOX={vals['n']}%2C{vals['e']}%2C{vals['s']}%2C{vals['w']}", code=302)
 
+@app.route("/v0/aerial-img")
+def find_texture():
 
+    vals = get_nsew(opt={"width":100, "height":100})
+    for k in vals.keys():
+        print(f"{k} {vals[k]}")
+
+    return redirect(f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
+                        f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_aerial&exceptions=application%2Fvnd.ogc.se_inimage&"
+                        f"SRS=EPSG%3A27700&WIDTH={vals['width']}&HEIGHT={vals['height']}"
+                        f"&BBOX={vals['n']}%2C{vals['e']}%2C{vals['s']}%2C{vals['w']}", code=302)
