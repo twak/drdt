@@ -4,9 +4,33 @@ import psycopg2
 sevenseven = 27700
 cur, con = None, None
 
-def create_postgres_connection():
+las_route = "/08. Researchers/tom/a14/las_chunks"
+nas_mount = f"/home/twak/citnas"
+api_url = "http://dt.twak.org:5000/"
+
+class Postgres():
+    def __init__(self, pass_file="pwd.json"):
+        self.pass_file = pass_file
+        self.cur, self.con = None, None
+
+    def __enter__(self):
+
+        with open(f"api/{self.pass_file}") as fp:
+            pwp = json.load(fp)
+
+        print(f"connecting to {pwp['dbname']}@{pwp['host']}")
+        self.con = psycopg2.connect(dbname=pwp['dbname'], user=pwp['user'], password=pwp['password'], host=pwp['host'])
+        self.cur = self.con.cursor()
+        print(f"success as {pwp['user']}")
+        return self
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.con.close()
+
+
+def create_postgres_connection(pass_file="pwd.json"):
     global curs
-    with open("api/pwd_rw.json") as fp:
+    with open(f"api/{pass_file}") as fp:
         pwp = json.load(fp)
 
     global cur, con

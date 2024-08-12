@@ -10,7 +10,7 @@ se = (601205.6, 261660.2) # south east
 
 if False: ##### demo 1 - finding LAS files in that rectangle
     # open postgres connection to the server (so needs vpn/be on cambridge network)
-    curs = utils.ro_create_postgres_connection()
+    curs, conn = utils.ro_create_postgres_connection()
 
     # SQL query for some coordinates
     curs.execute(
@@ -34,6 +34,8 @@ if False: ##### demo 1 - finding LAS files in that rectangle
         print (f" type: {x[0]} name: {x[1]}")
         # this is a linux file path, but guess you can mount the NAS on windows, add a drive letter at the start, and it'll work...?
         print (f" location on nas: {x[2]}\n ")
+
+    conn.close()
 
 else: ##### demo 2 - download a transperent PNG of the same area from geoserver
 

@@ -45,12 +45,11 @@ def index():
         /08. Researchers/tom/a14/las_chunks
 
     for example, with the coords (epsg:27700)
-     nw = (601158.9, 261757.9) # north west
-     se = (601205.6, 261660.2) # south east
-     
-     we call:
         
     /v0/find-las?n=601158.9&w=261757.9&s=601205.6&e=261660.2
+    
+    /v0/find-las?w=601158.9&n=261757.9&e=601205.6&s=261660.2
+
 """
 @app.route("/v0/find-las")
 def find_las():
@@ -63,10 +62,10 @@ def find_las():
             FROM las_chunks
             WHERE ST_Intersects
              ( geom
-             , ST_MakeEnvelope ( {vals['n']} -- query box
-                               , {vals['e']}
+             , ST_MakeEnvelope ( {vals['w']} -- query box
                                , {vals['s']}
-                               , {vals['w']}
+                               , {vals['e']}
+                               , {vals['n']}
                                , 27700 -- projection epsg-code (gb national grid)
                                )::geometry('POLYGON') 
              )
@@ -84,7 +83,7 @@ def find_las():
 """
     returns a section of the orthomosaic at resolution width x height for given 27700 area
      
-    /v0/pavement?n=601158.9&w=261757.9&s=601205.6&e=261660.2&scale=10
+    /v0/pavement?w=601158.9&n=261757.9&e=601205.6&s=261660.2&scale=10
 """
 
 @app.route("/v0/pavement")
@@ -96,19 +95,19 @@ def find_pavement():
     for k in vals.keys():
         print(f"{k} {vals[k]}")
 
-    height = (float (vals['w']) - float(vals['e'])) * float(vals['scale'])
-    width  = (float(vals['s']) - float(vals['n'])) * float(vals['scale'])
+    height = (float (vals['n']) - float(vals['s'])) * float(vals['scale'])
+    width  = (float(vals['e']) - float(vals['w'])) * float(vals['scale'])
 
     return redirect(f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
                         f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_pavement_orthomosaics&exceptions=application%2Fvnd.ogc.se_inimage&"
                         f"SRS=EPSG%3A27700&WIDTH={int(width)}&HEIGHT={int(height)}"
-                        f"&BBOX={vals['n']}%2C{vals['e']}%2C{vals['s']}%2C{vals['w']}", code=302)
+                        f"&BBOX={vals['w']}%2C{vals['s']}%2C{vals['e']}%2C{vals['n']}", code=302)
 
 
 """
     returns a section of the orthomosaic at resolution width x height for given 27700 area
 
-    /v0/aerial?n=601158.9&w=261757.9&s=601205.6&e=261660.2&scale=10
+    /v0/aerial?w=601158.9&n=261757.9&e=601205.6&s=261660.2&scale=10
 """
 
 @app.route("/v0/aerial")
@@ -120,10 +119,10 @@ def find_aerial():
     for k in vals.keys():
         print(f"{k} {vals[k]}")
 
-    height = (float (vals['w']) - float(vals['e'])) * float(vals['scale'])
-    width  = (float(vals['s']) - float(vals['n'])) * float(vals['scale'])
+    height = (float(vals['n']) - float(vals['s'])) * float(vals['scale'])
+    width = (float(vals['e']) - float(vals['w'])) * float(vals['scale'])
 
     return redirect(f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
                         f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_aerial&exceptions=application%2Fvnd.ogc.se_inimage&"
                         f"SRS=EPSG%3A27700&WIDTH={int(width)}&HEIGHT={int(height)}"
-                        f"&BBOX={vals['n']}%2C{vals['e']}%2C{vals['s']}%2C{vals['w']}", code=302)
+                        f"&BBOX={vals['w']}%2C{vals['s']}%2C{vals['e']}%2C{vals['n']}", code=302)

@@ -15,14 +15,16 @@ import api.utils as utils
 Given a set of las chunks (chunk_las.py), this adds them and their bounds to a postgis table.
 """
 
+table_name="las_chunks2"
+
 def setup_db():
+    global table_name
 
     curs, con = create_postgres_connection()
-
     print("removing old table...")
-    curs.execute('DROP TABLE IF EXISTS las_chunks2')
+    curs.execute(f'DROP TABLE IF EXISTS {table_name}')
     print("...creating new table...")
-    curs.execute(f'CREATE TABLE las_chunks2 (geom geometry, type text, name text, nas text, origin geometry(Point, {utils.sevenseven}))')
+    curs.execute(f'CREATE TABLE {table_name} (geom geometry, type text, name text, nas text, origin geometry(Point, {utils.sevenseven}))')
     print("...")
     con.commit()
     print("done")
@@ -65,6 +67,9 @@ def round_down (x):
     return math.floor(x/10)*10
 
 def add_chunks_db(chunk_root, nas_path, use_hull=True):
+
+    global table_name
+
     print("starting...")
     for file_name in os.listdir(chunk_root): # ['out_982.las']:
         print(f"file {file_name}")
@@ -101,21 +106,26 @@ def add_chunks_db(chunk_root, nas_path, use_hull=True):
 
                 # https://gis.stackexchange.com/questions/108533/insert-a-point-into-postgis-using-python
                 utils.cur.execute(
-                    'INSERT INTO las_chunks2(geom, type, name, nas, origin)'
+                    f'INSERT INTO {table_name}(geom, type, name, nas, origin)'
                     'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(type)s, %(name)s, %(nas)s, ST_SetSRID(%(origin)s::geometry, %(srid)s) )',
                     {'geom': ls.wkb_hex, 'srid': 27700, 'type': 'point_cloud', 'name': file_name, 'nas': nas_file, 'origin': origin.wkb_hex})
 
+    utils.cur.execute (
+        f"""
+        CREATE INDEX chunk_geom_idx
+          ON {table_name}
+          USING GIST (geom);
+        """
+    )
+
     utils.con.commit()
+    utils.con.close()
 
 if __name__ == "__main__":
 
     # chunk_root = "/home/twak/Downloads/meshing_test"
     # nas_path = f"08. Researchers/tom/a14/las_chunks"
 
-    cr = "/08. Researchers/tom/a14/las_chunks"
-    nas_path = cr
-    chunk_root = f"/home/twak/citnas{cr}"
-
     curs = setup_db()
-    add_chunks_db(chunk_root, nas_path, use_hull=False)
+    add_chunks_db(utils.nas_mount+utils.las_path, utils.nas_mount, use_hull=False)
 
