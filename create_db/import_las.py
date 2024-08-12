@@ -19,9 +19,10 @@ def setup_db():
 
     curs, con = create_postgres_connection()
 
-    print("setting up table...")
-    curs.execute('DROP TABLE IF EXISTS las_chunks')
-    curs.execute(f'CREATE TABLE las_chunks (geom geometry, type text, name text, nas text, origin geometry(Point, {utils.sevenseven}))')
+    print("removing old table...")
+    curs.execute('DROP TABLE IF EXISTS las_chunks2')
+    print("...creating new table...")
+    curs.execute(f'CREATE TABLE las_chunks2 (geom geometry, type text, name text, nas text, origin geometry(Point, {utils.sevenseven}))')
     print("...")
     con.commit()
     print("done")
@@ -100,7 +101,7 @@ def add_chunks_db(chunk_root, nas_path, use_hull=True):
 
                 # https://gis.stackexchange.com/questions/108533/insert-a-point-into-postgis-using-python
                 utils.cur.execute(
-                    'INSERT INTO las_chunks(geom, type, name, nas, origin)'
+                    'INSERT INTO las_chunks2(geom, type, name, nas, origin)'
                     'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(type)s, %(name)s, %(nas)s, ST_SetSRID(%(origin)s::geometry, %(srid)s) )',
                     {'geom': ls.wkb_hex, 'srid': 27700, 'type': 'point_cloud', 'name': file_name, 'nas': nas_file, 'origin': origin.wkb_hex})
 
