@@ -100,12 +100,12 @@ def add_chunks_db(curs, chunk_root, nas_path, use_hull=True):
 
 if __name__ == "__main__":
 
-    # chunk_root = "/home/twak/Downloads/meshing_test"
-    # nas_path = f"08. Researchers/tom/a14/las_chunks"
+    chunk_root = "/home/twak/Downloads/meshing_test"
+    nas_path = f"08. Researchers/tom/a14/las_chunks"
 
-    cr = "/08. Researchers/tom/a14/las_chunks"
-    nas_path = cr
-    chunk_root = f"/home/twak/citnas{cr}"
+    # cr = "/08. Researchers/tom/a14/las_chunks"
+    # nas_path = cr
+    # chunk_root = f"/home/twak/citnas{cr}"
 
     curs = setup_db()
     add_chunks_db(curs, chunk_root, nas_path, use_hull=False)
