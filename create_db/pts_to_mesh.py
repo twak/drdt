@@ -6,6 +6,16 @@ from  shapely import wkb
 import shutil, tempfile, os
 import urllib.request
 
+"""
+
+for each las chunk we create a mesh:
+ - download all adjacent las files
+ - download texture for the central las chunk
+ - use pdal to filter & merge point clouds
+ - use blender to create a mesh and project texture
+ 
+"""
+
 def go():
 
     with Postgres(pass_file="newboy_pwd_rw.json") as pg:
@@ -44,10 +54,6 @@ def go():
             urllib.request.urlretrieve(f"{utils.api_url}v0/aerial?w={origin.x}&s={origin.y}&e={origin.x + 10}&n={origin.y + 10}&scale=20", os.path.join(temp_dir.name, "aerial.png"))
 
             sys.exit(0)
-
-
-
-
 
 if __name__ == "__main__":
     go()
