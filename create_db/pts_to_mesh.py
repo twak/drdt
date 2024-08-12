@@ -7,13 +7,11 @@ import shutil, tempfile, os
 import urllib.request
 
 """
-
 for each las chunk we create a mesh:
  - download all adjacent las files
  - download texture for the central las chunk
  - use pdal to filter & merge point clouds
- - use blender to create a mesh and project texture
- 
+ - use blender to create a mesh, crop, set uvs, and project texture
 """
 
 def go():
