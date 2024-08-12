@@ -38,13 +38,10 @@ def go():
 
             for y in c2:
                 print (f" >>>> type: {y[0]} name: {y[1]}")
-                # shutil.copy (os.path.join (utils.nas_mount+utils.las_route, y[1]), temp_dir.name )
+                shutil.copy (os.path.join (utils.nas_mount+utils.las_route, y[1]), temp_dir.name )
 
-            urllib.request.urlretrieve(f"{utils.api_url}v0/pavement?w={origin.x}&s={origin.y}&e={origin.x+10}&n={origin.y+10}&scale=10", os.path.join(temp_dir.name, "pavement.png"))
-            urllib.request.urlretrieve(f"{utils.api_url}v0/aerial?w={origin.x}&s={origin.y}&e={origin.x + 10}&n={origin.y + 10}&scale=10", os.path.join(temp_dir.name, "aerial.png"))
-
-
-            print(tmp_dir)
+            urllib.request.urlretrieve(f"{utils.api_url}v0/pavement?w={origin.x}&s={origin.y}&e={origin.x+10}&n={origin.y+10}&scale=100", os.path.join(temp_dir.name, "pavement.png"))
+            urllib.request.urlretrieve(f"{utils.api_url}v0/aerial?w={origin.x}&s={origin.y}&e={origin.x + 10}&n={origin.y + 10}&scale=20", os.path.join(temp_dir.name, "aerial.png"))
 
             sys.exit(0)
 
