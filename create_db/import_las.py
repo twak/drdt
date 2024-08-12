@@ -19,9 +19,12 @@ def setup_db():
 
     curs, con = create_postgres_connection()
 
+    print("setting up table...")
     curs.execute('DROP TABLE IF EXISTS las_chunks')
     curs.execute(f'CREATE TABLE las_chunks (geom geometry, type text, name text, nas text, origin geometry(Point, {utils.sevenseven}))')
+    print("...")
     con.commit()
+    print("done")
 
 
 def convex_hull(lasdata):
