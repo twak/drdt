@@ -107,7 +107,6 @@ if __name__ == "__main__":
     nas_path = cr
     chunk_root = f"/home/twak/citnas{cr}"
 
-
     curs = setup_db()
     add_chunks_db(curs, chunk_root, nas_path, use_hull=False)
 
