@@ -11,6 +11,10 @@ from shapely.geometry import Polygon, Point
 from api.utils import create_postgres_connection
 import api.utils as utils
 
+"""
+Given a set of las chunks (chunk_las.py), this adds them and their bounds to a postgis table.
+"""
+
 def setup_db():
 
     curs, con = create_postgres_connection()
@@ -56,9 +60,10 @@ def min_max (lasdata):
 def round_down (x):
     return math.floor(x/10)*10
 
-def add_chunks_db(curs, chunk_root, nas_path, use_hull=True):
-
+def add_chunks_db(chunk_root, nas_path, use_hull=True):
+    print("starting...")
     for file_name in os.listdir(chunk_root): # ['out_982.las']:
+        print(f"file {file_name}")
         if file_name.endswith(".las"):
             with laspy.open( os.path.join ( chunk_root, file_name) ) as fh:
                 print(f'{file_name} - num_points:', fh.header.point_count)
@@ -108,5 +113,5 @@ if __name__ == "__main__":
     chunk_root = f"/home/twak/citnas{cr}"
 
     curs = setup_db()
-    add_chunks_db(curs, chunk_root, nas_path, use_hull=False)
+    add_chunks_db(chunk_root, nas_path, use_hull=False)
 

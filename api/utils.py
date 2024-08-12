@@ -10,8 +10,10 @@ def create_postgres_connection():
         pwp = json.load(fp)
 
     global cur, con
+    print(f"connecting to {pwp['dbname']}")
     con = psycopg2.connect(dbname=pwp['dbname'], user=pwp['user'], password=pwp['password'], host=pwp['host'])
     cur = con.cursor()
+    print("success!")
 
     return cur, con
 

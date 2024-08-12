@@ -1,5 +1,8 @@
 import os
 
+"""
+For all las files, this breaks them up into chunks.
+"""
 
 def write_file(prefix):
     with open(os.path.join ( "pdal_jsons", prefix+".json"), "w") as fp:
