@@ -16,7 +16,7 @@ app.debug = True
 # coordinates of the rectangle. You can explore these by using QGIS, or https://digimap.edina.ac.uk/roam/map/os and clicking
 
 
-curs = utils.create_postgres_connection()
+curs, conn = utils.create_postgres_connection()
 
 
 def get_nsew(other=[],opt={}):
@@ -45,8 +45,6 @@ def index():
         /08. Researchers/tom/a14/las_chunks
 
     for example, with the coords (epsg:27700)
-        
-    /v0/find-las?n=601158.9&w=261757.9&s=601205.6&e=261660.2
     
     /v0/find-las?w=601158.9&n=261757.9&e=601205.6&s=261660.2
 
