@@ -6,7 +6,7 @@ from shapely import wkb
 import urllib.request
 import json
 
-import utils
+from . import utils
 
 # import requests
 
