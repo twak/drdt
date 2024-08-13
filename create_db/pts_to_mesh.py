@@ -3,8 +3,9 @@ import sys
 import api.utils as utils
 from api.utils import Postgres
 from  shapely import wkb
-import shutil, tempfile, os
+import shutil, os
 import urllib.request
+import uuid
 
 """
 for each las chunk we create a mesh:
@@ -22,12 +23,13 @@ def go():
             f"""
             SELECT  type, name, nas, origin
             FROM public.las_chunks
+            WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint(598555.51,262383.29), 27700 ) , 1)
             """)
 
         for x in pg.cur:
 
-            temp_dir = tempfile.TemporaryDirectory()
-            print(temp_dir)
+            workdir = os.path.join ("/home/twak/Downloads", str(uuid.uuid4()) )
+            os.makedirs(workdir, exist_ok=False) # tempfile.TemporaryDirectory()
 
             print (f" type: {x[0]} name: {x[1]}")
             # this is a linux file path, but guess you can mount the NAS on windows, add a drive letter at the start, and it'll work...?
@@ -46,12 +48,11 @@ def go():
 
             for y in c2:
                 print (f" >>>> type: {y[0]} name: {y[1]}")
-                shutil.copy (os.path.join (utils.nas_mount+utils.las_route, y[1]), temp_dir.name )
+                shutil.copy (os.path.join (utils.nas_mount+utils.las_route, y[1]), os.path.join(workdir, y[1]) )
 
-            urllib.request.urlretrieve(f"{utils.api_url}v0/pavement?w={origin.x}&s={origin.y}&e={origin.x+10}&n={origin.y+10}&scale=100", os.path.join(temp_dir.name, "pavement.png"))
-            urllib.request.urlretrieve(f"{utils.api_url}v0/aerial?w={origin.x}&s={origin.y}&e={origin.x + 10}&n={origin.y + 10}&scale=20", os.path.join(temp_dir.name, "aerial.png"))
+            urllib.request.urlretrieve(f"{utils.api_url}v0/pavement?w={origin.x}&s={origin.y}&e={origin.x+10}&n={origin.y+10}&scale=100", os.path.join(workdir, "pavement.png"))
+            urllib.request.urlretrieve(f"{utils.api_url}v0/aerial?w={origin.x}&s={origin.y}&e={origin.x + 10}&n={origin.y + 10}&scale=20", os.path.join(workdir, "aerial.png"))
 
-            sys.exit(0)
 
 if __name__ == "__main__":
     go()
