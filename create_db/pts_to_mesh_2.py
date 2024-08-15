@@ -44,12 +44,8 @@ def run_pdal_scripts(workdir, las_files, classes, x, y):
                     ]
                     ''')
 
-        # subprocess.run(f'source activate pdal && "cd {workdir}" && "pdal pipeline {out_folder}/go_{klass}.json" && conda deactivate', shell=True, executable='/bin/bash')
-        # subprocess.run(f'source activate pdal && cd {workdir} && pdal pipeline {workdir}/{out_folder}/go_{klass}.json', shell=True, executable='/bin/bash')
-        # subprocess.run(f'. ~/.bashrc && source activate pdal && cd {workdir} && conda list', shell=True, executable='/bin/bash')
-        # subprocess.run(f'. ~/.bashrc && eval "$(conda shell.bash hook)" && pwd', shell=True, executable='/bin/bash')
-        # subprocess.run(f'eval "$(conda shell.bash hook)" && conda activate pdal && cd {workdir} && pwd', shell=True, executable='/bin/bash')
-        subprocess.run(f'. ~/.bashrc && conda activate pdal && python --version', shell=True, executable='/bin/bash')
+        # this requires pdal in the current path (use conda!)
+        subprocess.run(f'cd {workdir} && pdal pipeline {out_folder}/go_{klass}.json', shell=True, executable='/bin/bash')
 
 
 def merge_and_filter_pts(workdir="/home/twak/Downloads/d6098df3-bc8e-4696-950e-30cfb4066ef5/",  x=598555.51,y=262383.29):
