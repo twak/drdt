@@ -5,6 +5,7 @@ sevenseven = 27700
 cur, con = None, None
 
 las_route = "/08. Researchers/tom/a14/las_chunks"
+las_route = "/08. Researchers/tom/a14/mesh_chunks"
 nas_mount = f"/home/twak/citnas"
 api_url = "http://dt.twak.org:5000/"
 
