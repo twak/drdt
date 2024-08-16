@@ -6,6 +6,7 @@ from  shapely import wkb
 import shutil, os
 import urllib.request
 import uuid
+import subprocess
 
 """
 for each las chunk we create a mesh:
@@ -21,8 +22,6 @@ def run_pdal_scripts(workdir, las_files, classes, x, y):
     out_folder = "stage2"
 
     for klass in classes.keys():
-        # out_folder = os.path.join ( workdir, out_folder )
-        os.makedirs(out_folder, exist_ok=True)
         with open(os.path.join ( workdir, out_folder, f"go_{klass}.json"), "w") as fp:
 
             print (f"generating {klass}")
@@ -73,7 +72,7 @@ def run_blender(input_dir, output_dir):
 
 def go():
 
-    with Postgres(pass_file="newboy_pwd_rw.json") as pg:
+    with Postgres(pass_file="pwd_rw.json") as pg:
 
         pg.cur.execute(
             f"""
@@ -93,15 +92,15 @@ def go():
 
             # if no origin in mesh_chunks database, then.
 
-            workdir = os.path.join (utils.nas_mount+utils.mesh_route, f"{origin.x}_{origin.y}" )
-            # workdir = os.path.join ("/home/twak/Downloads", f"{origin.x}_{origin.y}" )
+            # workdir = os.path.join (utils.nas_mount+utils.mesh_route, f"{origin.x}_{origin.y}" )
+            workdir = os.path.join ("/home/twak/Downloads", f"{origin.x}_{origin.y}" )
 
-            if os.path.exists(workdir):
-                continue # already done this
-            os.makedirs(workdir, exist_ok=False)
+            # if os.path.exists(workdir):
+            #     continue # already done this
+            os.makedirs(workdir, exist_ok=True)
 
             for i in range (1,4):
-                os.makedirs(workdir, f"stage{i}", exist_ok=True)
+                os.makedirs( os.path.join ( workdir, f"stage{i}"), exist_ok=True)
 
             c2.execute (
                 f"""
@@ -113,8 +112,10 @@ def go():
 
             # download nearby las files
             for y in c2:
-                print (f" >>>> type: {y[0]} name: {y[1]}")
-                shutil.copy (os.path.join (utils.nas_mount+utils.las_route, y[1]), os.path.join(workdir, "stage1", y[1]) )
+                print (f" >>>> downloading {y[1]}...")
+                dest = os.path.join(workdir, "stage1", y[1])
+                if not os.path.exists(dest):
+                    shutil.copy (os.path.join (utils.nas_mount+utils.las_route, y[1]), dest )
 
             # run pdal, merge and filter point clouds
             merge_and_filter_pts (workdir, origin.x, origin.y)
