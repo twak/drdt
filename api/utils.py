@@ -7,6 +7,7 @@ cur, con = None, None
 las_route = "/08. Researchers/tom/a14/las_chunks"
 mesh_route = "/08. Researchers/tom/a14/mesh_chunks"
 nas_mount = f"/home/twak/citnas"
+nas_mount_w = f"/home/twak/citnas2"
 api_url = "http://dt.twak.org:5000/"
 
 class Postgres():

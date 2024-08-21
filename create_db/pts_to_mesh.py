@@ -2,11 +2,12 @@ import sys
 
 import api.utils as utils
 from api.utils import Postgres
-from  shapely import wkb
+from shapely import wkb, Polygon
 import shutil, os
 import urllib.request
 import uuid
 import subprocess
+from pathlib import Path
 
 """
 for each las chunk we create a mesh:
@@ -54,7 +55,9 @@ def run_pdal_scripts(workdir, las_files, classes, x, y):
                     ]
                     ''')
 
+
         # this requires pdal in the current path (use conda!)
+        print("merging and filtering point clouds...")
         subprocess.run(f'cd {workdir} && pdal pipeline {out_folder}/go_{klass}.json', shell=True, executable='/bin/bash')
 
 
@@ -66,19 +69,38 @@ def merge_and_filter_pts(workdir="/home/twak/Downloads/d6098df3-bc8e-4696-950e-3
     classes["road"] = [2, 7, 8, 9, 11]
     run_pdal_scripts(workdir, las_files, classes, x,y )
 
-def run_blender(input_dir, output_dir):
-    # subprocess.run(f'', shell=True, executable='/bin/bash')
-    pass
+def run_blender( workdir ):
+
+    # call blender to run the meshing script from its directory
+    workdir = Path(workdir)
+    print("running blender...")
+    # ~/lib/blender/blender  -b las_to_mesh.blend --python las_to_mesh.py -- --cycles-device OPTIX --root="/home/twak/Downloads" --name="598550.0_262380.0"
+    out = subprocess.run(f'cd {Path(__file__).parent.parent.joinpath("blender")} &&'
+                   f'/home/twak/lib/blender/blender -b las_to_mesh.blend --python las_to_mesh.py -- '
+                   f'--cycles-device OPTIX --root="{workdir.parent}" --name="{workdir.name}"',
+                   shell=True, executable='/bin/bash')
+
+    return out.returncode
 
 def go():
 
+    mesh_chunks = f"{utils.nas_mount_w}{utils.mesh_route}"
+    table_name = "A14_mesh_chunks"
+    chunk_size = 10
+    scratch = "/home/twak/Downloads/foo"
+
     with Postgres(pass_file="pwd_rw.json") as pg:
+
+        pg.cur.execute(f'DROP TABLE IF EXISTS {table_name}')
+        pg.cur.execute(
+            f'CREATE TABLE {table_name} (geom geometry(Polygon, {utils.sevenseven}), name text, nas text, files text, origin geometry(Point, {utils.sevenseven}))')
+        pg.con.commit()
 
         pg.cur.execute(
             f"""
             SELECT  type, name, nas, origin
             FROM public.las_chunks
-            WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint(598555.51,262383.29), 27700 ) , 1)
+--             WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint(598555.51,262383.29), 27700 ) , 1)
             """)
 
         for x in pg.cur:
@@ -93,10 +115,13 @@ def go():
             # if no origin in mesh_chunks database, then.
 
             # workdir = os.path.join (utils.nas_mount+utils.mesh_route, f"{origin.x}_{origin.y}" )
-            workdir = os.path.join ("/home/twak/Downloads", f"{origin.x}_{origin.y}" )
+            chunk_name = f"w_{origin.x}_{origin.y}" # _w_indows friendly filename
+            workdir = os.path.join (scratch, chunk_name )
 
-            # if os.path.exists(workdir):
-            #     continue # already done this
+            if os.path.exists(f"{mesh_chunks}/{chunk_name}"):
+                print("output already exists, skipping")
+                continue # guess we've already done this
+
             os.makedirs(workdir, exist_ok=True)
 
             for i in range (1,4):
@@ -106,7 +131,7 @@ def go():
                 f"""
                 SELECT type,name
                 FROM public.las_chunks
-                WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint({origin.x +5}, {origin.y+5}), 27700 ) , 10)
+                WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint({origin.x + chunk_size/2}, {origin.y + chunk_size/2}), 27700 ) , 10)
                 """
             )
 
@@ -125,14 +150,42 @@ def go():
             urllib.request.urlretrieve(f"{utils.api_url}v0/aerial?w={origin.x}&s={origin.y}&e={origin.x + 10}&n={origin.y + 10}&scale=20", os.path.join(workdir, "stage2", "aerial.png"))
 
             # create fbx files
-            run_blender(os.path.join(workdir, "stage2"), os.path.join(workdir) )
+            file_str = []
+            if run_blender( workdir ) == 0:
 
-            # save to mesh table
-            # c2.execute(
-            #     f'INSERT INTO mesh_chunks(geom, type, name, nas, origin)'
-            #     'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(type)s, %(name)s, %(nas)s, ST_SetSRID(%(origin)s::geometry, %(srid)s) )',
-            #     {'geom': ls.wkb_hex, 'srid': 27700, 'type': 'mesh', 'name': file_name, 'nas': nas_file, 'origin': origin.wkb_hex})
+                #save to mesh table
+                to = os.path.join ( mesh_chunks, chunk_name)
 
+                os.makedirs(to, exist_ok=True)
+                for f in os.listdir(os.path.join(workdir, "stage3")):
+                    print (f"copying mesh file {f} to nas...")
+                    shutil.copyfile( os.path.join(workdir, "stage3", f), os.path.join(to, f) )
+                    file_str.append(f)
+
+                file_str = ";".join(file_str)
+
+                # extent of the mesh in 27700
+                ls = Polygon([
+                    [origin.x, origin.y],
+                    [origin.x, origin.y + chunk_size],
+                    [origin.x + chunk_size, origin.y + chunk_size],
+                    [origin.x + chunk_size, origin.y]
+                ])
+
+                # insert into mesh table
+                # c2.execute(
+                #     f'INSERT INTO {table_name}(geom, name, nas, files, origin) '
+                #     f"VALUES (ST_SetSRID({ls.wkb_hex}::geometry, {utils.sevenseven}), '{chunk_name}', '{utils.mesh_route}/{chunk_name}', '{file_str}', ST_SetSRID({origin.wkb_hex}::geometry, {utils.sevenseven}))")
+
+                print("inserting into db...")
+                c2.execute(
+                    f'INSERT INTO {table_name}(geom, name, nas, files, origin) '
+                    'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(name)s, %(nas)s, %(files)s, ST_SetSRID(%(origin)s::geometry, %(srid)s) )',
+                    {'geom': ls.wkb_hex, 'srid': 27700, 'type': 'point_cloud', 'name': chunk_name, 'nas': f"{utils.mesh_route}/{chunk_name}", 'files':file_str, 'origin': origin.wkb_hex})
+
+                pg.con.commit()
+
+            shutil.rmtree(workdir)
 
 
 

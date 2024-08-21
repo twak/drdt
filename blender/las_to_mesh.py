@@ -72,7 +72,7 @@ t.material_slots[0].material.node_tree.nodes["orthomosaic"].image = bpy.data.ima
 t.material_slots[0].material.node_tree.nodes["aerial"     ].image = bpy.data.images.load(os.path.join(input_folder, f"aerial.png"))
 
 img = bpy.data.images.new("pavement",512,512)
-img.filepath = os.path.join(output_folder, f"pavement_{name}.jpg")
+img.filepath = os.path.join(output_folder, f"{name}_pavement.jpg")
 img.file_format = 'JPEG'
 
 # bake the blended pavement texture
@@ -90,7 +90,7 @@ t.material_slots[0].material.node_tree.nodes["baked"].image = img
 for target in ["vegetation", "road"]:
     bpy.context.scene.objects[target].select_set(True)
 
-bpy.ops.export_scene.fbx(filepath=os.path.join(output_folder, f"mesh_{name}.fbx"), use_selection=True)
+bpy.ops.export_scene.fbx(filepath=os.path.join(output_folder, f"{name}_mesh.fbx"), use_selection=True)
 
 
 
