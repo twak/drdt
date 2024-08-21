@@ -2,7 +2,7 @@ from flask import Flask, request, redirect
 import logging
 import psycopg2
 from shapely.geometry import LineString
-from shapely import wkb
+import shapely
 import urllib.request
 import json
 
@@ -87,12 +87,14 @@ def find_las():
 
     returns a list of pairs - the first of which is the folder_name, the second is semi-colon delimetered list of files in the folder which make up the mesh:
 
-    [["w_598260.0_262620.0", "w_598260.0_262620.0_pavement.jpg;w_598260.0_262620.0_mesh.fbx"], ["w_598270.0_262620.0", "w_598270.0_262620.0_mesh.fbx;w_598270.0_262620.0_pavement.jpg"], ... ]
+    [["w_598260.0_262620.0", 598260.0, 262620.0, "w_598260.0_262620.0_pavement.jpg;w_598260.0_262620.0_mesh.fbx"], ["w_598270.0_262620.0", 598270.0, 262620.0, "w_598270.0_262620.0_mesh.fbx;w_598270.0_262620.0_pavement.jpg"], ...]
     
     In this output, the first mesh is made up of the files:
     
     /08. Researchers/tom/a14/mesh_chunks/w_598260.0_262620.0/w_598260.0_262620.0_mesh.fbx
     /08. Researchers/tom/a14/mesh_chunks/w_598260.0_262620.0/w_598260.0_262620.0_pavement.jpg
+    
+    with offset 598260.0, 262620.0
 """
 
 @app.route("/v0/find-mesh")
@@ -105,7 +107,7 @@ def find_mesh():
 
     curs.execute(
         f"""
-            SELECT  name, files, origin
+            SELECT  name, files, ST_AsText(origin)
             FROM a14_mesh_chunks
             WHERE ST_Intersects
             ( geom, {envelope(vals)} )
@@ -115,8 +117,9 @@ def find_mesh():
     out = []
     for x in curs.fetchall():
         # the type always point clouds (for now, maybe meshes later?)
+        pt = shapely.from_wkt(x[2])
         print(f" name: {x[0]} files: {x[1]}")
-        out.append((x[0], x[1]))
+        out.append((x[0], pt.x, pt.y, x[1]))
 
     return json.dumps(out)
 
