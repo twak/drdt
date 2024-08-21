@@ -40,6 +40,9 @@ def index():
     return "<html><body>i am digital twin</body></html>"
 
 
+def envelope(vals):
+    return (f"ST_MakeEnvelope({vals['w']}, {vals['s']}, {vals['e']}, {vals['n']}, 27700 )::geometry('POLYGON')")
+
 """
     returns a list of nas-las files which can be found on the nas in the folder:
         /08. Researchers/tom/a14/las_chunks
@@ -54,19 +57,15 @@ def find_las():
 
     vals = get_nsew()
 
+    if isinstance(vals, str):
+        return vals
+
     curs.execute(
         f"""
             SELECT  type, name, nas
             FROM las_chunks
             WHERE ST_Intersects
-             ( geom
-             , ST_MakeEnvelope ( {vals['w']} -- query box
-                               , {vals['s']}
-                               , {vals['e']}
-                               , {vals['n']}
-                               , 27700 -- projection epsg-code (gb national grid)
-                               )::geometry('POLYGON') 
-             )
+            ( geom, {envelope(vals)} )
             """)
 
     print("las chunks I found:")
@@ -75,6 +74,49 @@ def find_las():
         # the type always point clouds (for now, maybe meshes later?)
         print(f" type: {x[0]} name: {x[1]}")
         out.append(x[1])
+
+    return json.dumps(out)
+
+"""
+    returns a list of nas-las files which can be found on the nas in the folder:
+        /08. Researchers/tom/a14/mesh_chunks
+
+    for example, with the coords (epsg:27700)
+
+    /v0/find-mesh?w=598227.56&n=262624.51&e=598296.11&s=262672.38
+
+    returns a list of pairs - the first of which is the folder_name, the second is semi-colon delimetered list of files in the folder which make up the mesh:
+
+    [["w_598260.0_262620.0", "w_598260.0_262620.0_pavement.jpg;w_598260.0_262620.0_mesh.fbx"], ["w_598270.0_262620.0", "w_598270.0_262620.0_mesh.fbx;w_598270.0_262620.0_pavement.jpg"], ... ]
+    
+    In this output, the first mesh is made up of the files:
+    
+    /08. Researchers/tom/a14/mesh_chunks/w_598260.0_262620.0/w_598260.0_262620.0_mesh.fbx
+    /08. Researchers/tom/a14/mesh_chunks/w_598260.0_262620.0/w_598260.0_262620.0_pavement.jpg
+"""
+
+@app.route("/v0/find-mesh")
+def find_mesh():
+
+    vals = get_nsew()
+
+    if isinstance(vals, str):
+        return vals
+
+    curs.execute(
+        f"""
+            SELECT  name, files, origin
+            FROM a14_mesh_chunks
+            WHERE ST_Intersects
+            ( geom, {envelope(vals)} )
+            """)
+
+    print("las chunks I found:")
+    out = []
+    for x in curs.fetchall():
+        # the type always point clouds (for now, maybe meshes later?)
+        print(f" name: {x[0]} files: {x[1]}")
+        out.append((x[0], x[1]))
 
     return json.dumps(out)
 
