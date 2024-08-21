@@ -17,7 +17,6 @@ for each las chunk we create a mesh:
  - use blender to create a mesh, crop, set uvs, and project texture
 """
 
-
 def run_pdal_scripts(workdir, las_files, classes, x, y):
 
     out_folder = "stage2"
@@ -171,11 +170,6 @@ def go():
                     [origin.x + chunk_size, origin.y + chunk_size],
                     [origin.x + chunk_size, origin.y]
                 ])
-
-                # insert into mesh table
-                # c2.execute(
-                #     f'INSERT INTO {table_name}(geom, name, nas, files, origin) '
-                #     f"VALUES (ST_SetSRID({ls.wkb_hex}::geometry, {utils.sevenseven}), '{chunk_name}', '{utils.mesh_route}/{chunk_name}', '{file_str}', ST_SetSRID({origin.wkb_hex}::geometry, {utils.sevenseven}))")
 
                 print("inserting into db...")
                 c2.execute(
