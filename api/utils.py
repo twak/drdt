@@ -10,6 +10,8 @@ nas_mount = f"/home/twak/citnas"
 nas_mount_w = f"/home/twak/citnas2"
 api_url = "http://dt.twak.org:5000/"
 
+start_time = "2024-06-10 00:00:00" # the start of now is the day tom joined dr.
+
 class Postgres():
     def __init__(self, pass_file="pwd.json"):
         self.pass_file = pass_file

@@ -187,3 +187,14 @@ def find_aerial():
 #         return "success"
 #     except:
 #         return "error!"
+
+
+# ALTER TABLE public.las_chunks
+# ADD existence tsmultirange;
+#
+# update public.las_chunks set existence = '{[2021-01-01, 2024-06-10]}'
+#
+# CREATE INDEX A14_las_chunks_geom
+#     ON public."A14_las_chunks" USING gist
+#     (geom, existence)
+#     TABLESPACE pg_default;

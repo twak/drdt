@@ -1,0 +1,59 @@
+-- Table: public.A14_mesh_chunks
+
+-- DROP TABLE IF EXISTS public."A14_mesh_chunks";
+
+CREATE TABLE IF NOT EXISTS public."A14_mesh_chunks"
+(
+    geom geometry(Polygon,27700),
+    name text COLLATE pg_catalog."default",
+    nas text COLLATE pg_catalog."default",
+    files text COLLATE pg_catalog."default",
+    origin geometry(Point,27700),
+    existence tsmultirange
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public."A14_mesh_chunks"
+    OWNER to postgres;
+-- Index: a14_mesh_chunks_geom
+
+-- DROP INDEX IF EXISTS public.a14_mesh_chunks_geom;
+
+CREATE INDEX IF NOT EXISTS a14_mesh_chunks_geom
+    ON public."A14_mesh_chunks" USING gist
+    (geom, existence)
+    TABLESPACE pg_default;
+
+update public."A14_mesh_chunks" set existence = '{[2021-01-01, 2024-06-10]}'
+
+
+
+-- Table: public.A14_las_chunks
+
+-- DROP TABLE IF EXISTS public."A14_las_chunks";
+
+CREATE TABLE IF NOT EXISTS public."A14_las_chunks"
+(
+    geom geometry,
+    type text COLLATE pg_catalog."default",
+    name text COLLATE pg_catalog."default",
+    nas text COLLATE pg_catalog."default",
+    origin geometry(Point,27700),
+    existence tsmultirange
+)
+
+TABLESPACE pg_default;
+
+ALTER TABLE IF EXISTS public."A14_las_chunks"
+    OWNER to postgres;
+-- Index: a14_las_chunks_geom
+
+-- DROP INDEX IF EXISTS public.a14_las_chunks_geom;
+
+CREATE INDEX IF NOT EXISTS a14_las_chunks_geom
+    ON public."A14_las_chunks" USING gist
+    (geom, existence)
+    TABLESPACE pg_default;
+
+update public."A14_las_chunks" set existence = '{[2021-01-01, 2024-06-10]}'
