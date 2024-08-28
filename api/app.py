@@ -56,7 +56,7 @@ def find_las():
         pg.cur.execute(
             f"""
                 SELECT  type, name, nas
-                FROM las_chunks
+                FROM A14_las_chunks
                 WHERE ST_Intersects
                 ( geom, {envelope(vals)} )
                 """)
@@ -110,12 +110,11 @@ def find_mesh():
                 ( geom, {envelope(vals)} )
                 """)
 
-        print("las chunks I found:")
+        # print("las chunks I found:")
         out = []
         for x in pg.cur.fetchall():
-            # the type always point clouds (for now, maybe meshes later?)
             pt = shapely.from_wkt(x[2])
-            print(f" name: {x[0]} files: {x[1]}")
+            # print(f" name: {x[0]} files: {x[1]}")
             out.append((x[0], pt.x, pt.y, x[1]))
 
         return json.dumps(out)
