@@ -56,7 +56,7 @@ def find_las():
         pg.cur.execute(
             f"""
                 SELECT  type, name, nas
-                FROM A14_las_chunks
+                FROM "A14_las_chunks"
                 WHERE ST_Intersects
                 ( geom, {envelope(vals)} )
                 """)
