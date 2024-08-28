@@ -105,7 +105,7 @@ def find_mesh():
         pg.cur.execute(
             f"""
                 SELECT  name, files, ST_AsText(origin)
-                FROM A14_mesh_chunks
+                FROM "A14_mesh_chunks"
                 WHERE ST_Intersects
                 ( geom, {envelope(vals)} )
                 """)
