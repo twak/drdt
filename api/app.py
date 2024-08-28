@@ -53,7 +53,7 @@ def find_las():
 
     with utils.Postgres() as pg:
 
-        pg.curs.execute(
+        pg.cur.execute(
             f"""
                 SELECT  type, name, nas
                 FROM las_chunks
@@ -63,7 +63,7 @@ def find_las():
 
         print("las chunks I found:")
         out = []
-        for x in pg.curs.fetchall():
+        for x in pg.cur.fetchall():
             # the type always point clouds (for now, maybe meshes later?)
             print(f" type: {x[0]} name: {x[1]}")
             out.append(x[1])
@@ -102,7 +102,7 @@ def find_mesh():
 
     with utils.Postgres() as pg:
 
-        pg.curs.execute(
+        pg.cur.execute(
             f"""
                 SELECT  name, files, ST_AsText(origin)
                 FROM A14_mesh_chunks
@@ -112,7 +112,7 @@ def find_mesh():
 
         print("las chunks I found:")
         out = []
-        for x in pg.curs.fetchall():
+        for x in pg.cur.fetchall():
             # the type always point clouds (for now, maybe meshes later?)
             pt = shapely.from_wkt(x[2])
             print(f" name: {x[0]} files: {x[1]}")
