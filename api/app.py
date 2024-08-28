@@ -5,19 +5,10 @@ from shapely.geometry import LineString
 import shapely
 import urllib.request
 import json
-
 from . import utils
-
-# import requests
 
 app = Flask(__name__)
 app.debug = True
-
-# coordinates of the rectangle. You can explore these by using QGIS, or https://digimap.edina.ac.uk/roam/map/os and clicking
-
-
-curs, conn = utils.create_postgres_connection()
-
 
 def get_nsew(other=[],opt={}):
     vals = {}
@@ -58,24 +49,28 @@ def find_las():
     vals = get_nsew()
 
     if isinstance(vals, str):
-        return vals
+        return vals, 500
 
-    curs.execute(
-        f"""
-            SELECT  type, name, nas
-            FROM las_chunks
-            WHERE ST_Intersects
-            ( geom, {envelope(vals)} )
-            """)
+    with utils.Postgres() as pg:
 
-    print("las chunks I found:")
-    out = []
-    for x in curs.fetchall():
-        # the type always point clouds (for now, maybe meshes later?)
-        print(f" type: {x[0]} name: {x[1]}")
-        out.append(x[1])
+        pg.curs.execute(
+            f"""
+                SELECT  type, name, nas
+                FROM las_chunks
+                WHERE ST_Intersects
+                ( geom, {envelope(vals)} )
+                """)
 
-    return json.dumps(out)
+        print("las chunks I found:")
+        out = []
+        for x in pg.curs.fetchall():
+            # the type always point clouds (for now, maybe meshes later?)
+            print(f" type: {x[0]} name: {x[1]}")
+            out.append(x[1])
+
+        return json.dumps(out)
+
+    return "failed to connect to database", 500
 
 """
     returns a list of nas-las files which can be found on the nas in the folder:
@@ -103,25 +98,29 @@ def find_mesh():
     vals = get_nsew()
 
     if isinstance(vals, str):
-        return vals
+        return vals, 500
 
-    curs.execute(
-        f"""
-            SELECT  name, files, ST_AsText(origin)
-            FROM a14_mesh_chunks
-            WHERE ST_Intersects
-            ( geom, {envelope(vals)} )
-            """)
+    with utils.Postgres() as pg:
 
-    print("las chunks I found:")
-    out = []
-    for x in curs.fetchall():
-        # the type always point clouds (for now, maybe meshes later?)
-        pt = shapely.from_wkt(x[2])
-        print(f" name: {x[0]} files: {x[1]}")
-        out.append((x[0], pt.x, pt.y, x[1]))
+        pg.curs.execute(
+            f"""
+                SELECT  name, files, ST_AsText(origin)
+                FROM A14_mesh_chunks
+                WHERE ST_Intersects
+                ( geom, {envelope(vals)} )
+                """)
 
-    return json.dumps(out)
+        print("las chunks I found:")
+        out = []
+        for x in pg.curs.fetchall():
+            # the type always point clouds (for now, maybe meshes later?)
+            pt = shapely.from_wkt(x[2])
+            print(f" name: {x[0]} files: {x[1]}")
+            out.append((x[0], pt.x, pt.y, x[1]))
+
+        return json.dumps(out)
+
+    return "failed to connect to database", 500
 
 """
     returns a section of the orthomosaic at resolution width x height for given 27700 area
@@ -169,3 +168,23 @@ def find_aerial():
                         f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_aerial&exceptions=application%2Fvnd.ogc.se_inimage&"
                         f"SRS=EPSG%3A27700&WIDTH={int(width)}&HEIGHT={int(height)}"
                         f"&BBOX={vals['w']}%2C{vals['s']}%2C{vals['e']}%2C{vals['n']}", code=302)
+
+
+# @app.route("/v0/create_scenario")
+# def create_scenario():
+#     try:
+#         name = request.args['name']
+#
+#         scenarios = dbz.get_row("scenarios", name)
+#         if name in scenarios:
+#             return f"scenario {name} already exists"
+#
+#         dbz.insert_row("scenarios", {"name": name, "created": "now()"})
+#
+#         for dataset in ["A14"]:
+#             for table in ["las_chunks", "mesh_chunks"]:
+#                 dbz.create_table_from(f"{name}_{dataset}_{table}", f"{dataset}_{table}" )
+#
+#         return "success"
+#     except:
+#         return "error!"

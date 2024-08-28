@@ -62,5 +62,6 @@ def on_depsgraph_update(scene, depsgraph):
 mesh_collection = bpy.data.collections.new("mesh_collection")
 bpy.context.scene.collection.children.link(mesh_collection)
 
+# everytime anything moves (or rotates) - update...
 on_depsgraph_update.operator = None
 bpy.app.handlers.depsgraph_update_post.append(on_depsgraph_update)
