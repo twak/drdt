@@ -81,7 +81,7 @@ def go():
             f"""
             SELECT  type, name, nas, origin
             FROM public."A14_las_chunks"
-            WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint(598555.51,262383.29), 27700 ) , 1)
+--             WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint(598555.51,262383.29), 27700 ) , 1) 
             """)
 
         for x in pg.cur:
@@ -97,7 +97,7 @@ def go():
             chunk_file = f"{chunk_name}.e57"
 
             if os.path.exists(f"{lasos}/{chunk_file}"):
-                print("output already exists, skipping")
+                print(f"output {chunk_file} already exists, skipping")
                 continue # guess we've already done this
 
             workdir = os.path.join(scratch, chunk_name)
@@ -108,7 +108,7 @@ def go():
                 f"""
                 SELECT type,name, geom
                 FROM public."A14_las_chunks"
---                 WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint({origin.x + chunk_size/2}, {origin.y + chunk_size/2}), 27700 ) , 10) # debug
+                WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint({origin.x + chunk_size/2}, {origin.y + chunk_size/2}), 27700 ) , 10) 
                 """
             )
 
