@@ -5,12 +5,15 @@ sevenseven = 27700
 cur, con = None, None
 
 las_route = "/08. Researchers/tom/a14/las_chunks"
+laso_route = "/08. Researchers/tom/a14/laso_chunks"
 mesh_route = "/08. Researchers/tom/a14/mesh_chunks"
 nas_mount = f"/home/twak/citnas"
 nas_mount_w = f"/home/twak/citnas2"
 api_url = "http://dt.twak.org:5000/"
 
 start_time = "2024-06-10 00:00:00" # the start of now is the day tom joined dr.
+before_time_range = '{[2021-01-01,]}' # default creation date for cam-highway data
+
 
 class Postgres():
     def __init__(self, pass_file="pwd.json"):

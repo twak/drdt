@@ -30,7 +30,7 @@ def setup_db():
     print("done")
 
 
-def convex_hull(lasdata):
+def convex_hull(lasdata, file_name):
     try:
         hull = ConvexHull(lasdata)
     except Exception:
@@ -88,7 +88,7 @@ def add_chunks_db(chunk_root, nas_path, use_hull=True):
                 mm = min_max(lasdata)
 
                 if use_hull:
-                    boundary = convex_hull (lasdata)
+                    boundary = convex_hull (lasdata, file_name)
                 else:
                     boundary = [
                                 [mm[0], mm[1]],

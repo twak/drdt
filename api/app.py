@@ -27,7 +27,6 @@ def get_nsew(other=[],opt={}):
 
 @app.route('/')
 def index():
-    logging.warning("See this message in Flask Debug Toolbar!")
     return "<html><body>i am digital twin</body></html>"
 
 
@@ -178,7 +177,7 @@ def find_aerial():
 #         if name in scenarios:
 #             return f"scenario {name} already exists"
 #
-#         dbz.insert_row("scenarios", {"name": name, "created": "now()"})
+#         dbz.insert_row("scenarios", {"name": name, "created": "now()", "user": username})
 #
 #         for dataset in ["A14"]:
 #             for table in ["las_chunks", "mesh_chunks"]:
