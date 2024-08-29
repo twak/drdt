@@ -41,10 +41,10 @@ def envelope(vals):
     
     /v0/find-las?w=601158.9&n=261757.9&e=601205.6&s=261660.2
     
-    similarly for /v0/find-laso...
+    similarly for /v0/find-laso, except the reply include the x and y offset in 27700
 
 """
-def find_lasx(table):
+def find_lasx(table, with_origin=False):
 
     vals = get_nsew()
 
@@ -55,15 +55,20 @@ def find_lasx(table):
 
         pg.cur.execute(
             f"""
-                SELECT  name, nas
+                SELECT  name, ST_AsText(origin)
                 FROM public."{table}"
                 WHERE ST_Intersects
                 ( geom, {envelope(vals)} )
                 """)
 
         out = []
+
         for x in pg.cur.fetchall():
-            out.append(x[0])
+            pt = shapely.from_wkt(x[1])
+            if with_origin:
+                out.append((x[0], pt.x, pt.y))
+            else:
+                out.append(x[0])
 
         return json.dumps(out)
 
@@ -75,7 +80,7 @@ def find_las():
 
 @app.route("/v0/find-laso")
 def find_laso():
-    return find_lasx("a14_laso_chunks")
+    return find_lasx("a14_laso_chunks", with_origin=True)
 
 """
     returns a list of nas-las files which can be found on the nas in the folder:
