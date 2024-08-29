@@ -55,7 +55,7 @@ def find_lasx(table):
 
         pg.cur.execute(
             f"""
-                SELECT  type, name, nas
+                SELECT  name, nas
                 FROM public."{table}"
                 WHERE ST_Intersects
                 ( geom, {envelope(vals)} )
@@ -63,7 +63,7 @@ def find_lasx(table):
 
         out = []
         for x in pg.cur.fetchall():
-            out.append(x[1])
+            out.append(x[0])
 
         return json.dumps(out)
 
