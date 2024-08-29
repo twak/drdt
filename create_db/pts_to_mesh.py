@@ -84,7 +84,7 @@ def run_blender( workdir ):
 def go():
 
     mesh_chunks = f"{utils.nas_mount_w}{utils.mesh_route}"
-    table_name = "A14_mesh_chunks"
+    table_name = "a14_mesh_chunks"
     chunk_size = 10
     scratch = "/home/twak/Downloads/foo"
 
@@ -129,7 +129,7 @@ def go():
             c2.execute (
                 f"""
                 SELECT type,name
-                FROM public.las_chunks
+                FROM public.a14_las_chunks
                 WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint({origin.x + chunk_size/2}, {origin.y + chunk_size/2}), 27700 ) , 10)
                 """
             )

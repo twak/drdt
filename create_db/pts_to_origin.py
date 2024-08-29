@@ -68,7 +68,7 @@ def go():
     os.makedirs(lasos, exist_ok=True)
     chunk_size = 10 # meters
     scratch = "/home/twak/Downloads/foo"
-    table_name = "A14_laso_chunks"
+    table_name = "a14_laso_chunks"
 
     with Postgres(pass_file="pwd_rw.json") as pg:
 
@@ -80,7 +80,7 @@ def go():
         pg.cur.execute(
             f"""
             SELECT  type, name, nas, origin
-            FROM public."A14_las_chunks"
+            FROM public."a14_las_chunks"
 --             WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint(598555.51,262383.29), 27700 ) , 1) 
             """)
 
@@ -107,7 +107,7 @@ def go():
             c2.execute (
                 f"""
                 SELECT type,name, geom
-                FROM public."A14_las_chunks"
+                FROM public."a14_las_chunks"
                 WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint({origin.x + chunk_size/2}, {origin.y + chunk_size/2}), 27700 ) , 10) 
                 """
             )

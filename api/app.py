@@ -27,7 +27,7 @@ def get_nsew(other=[],opt={}):
 
 @app.route('/')
 def index():
-    return "<html><body>i am digital twin</body></html>"
+    return "<html><body>i am a drdt; a digital twin</body></html>"
 
 
 def envelope(vals):
@@ -40,10 +40,11 @@ def envelope(vals):
     for example, with the coords (epsg:27700)
     
     /v0/find-las?w=601158.9&n=261757.9&e=601205.6&s=261660.2
+    
+    similarly for /v0/find-laso...
 
 """
-@app.route("/v0/find-las")
-def find_las():
+def find_lasx(table):
 
     vals = get_nsew()
 
@@ -55,21 +56,26 @@ def find_las():
         pg.cur.execute(
             f"""
                 SELECT  type, name, nas
-                FROM "A14_las_chunks"
+                FROM public."{table}"
                 WHERE ST_Intersects
                 ( geom, {envelope(vals)} )
                 """)
 
-        print("las chunks I found:")
         out = []
         for x in pg.cur.fetchall():
-            # the type always point clouds (for now, maybe meshes later?)
-            print(f" type: {x[0]} name: {x[1]}")
             out.append(x[1])
 
         return json.dumps(out)
 
     return "failed to connect to database", 500
+
+@app.route("/v0/find-las")
+def find_las():
+    return find_lasx("a14_las_chunks")
+
+@app.route("/v0/find-laso")
+def find_laso():
+    return find_lasx("a14_laso_chunks")
 
 """
     returns a list of nas-las files which can be found on the nas in the folder:
@@ -104,7 +110,7 @@ def find_mesh():
         pg.cur.execute(
             f"""
                 SELECT  name, files, ST_AsText(origin)
-                FROM "A14_mesh_chunks"
+                FROM "a14_mesh_chunks"
                 WHERE ST_Intersects
                 ( geom, {envelope(vals)} )
                 """)
@@ -145,7 +151,7 @@ def find_pavement():
 
 
 """
-    returns a section of the orthomosaic at resolution width x height for given 27700 area
+    returns a section of the os aerial image at resolution width x height for given 27700 area
 
     /v0/aerial?w=601158.9&n=261757.9&e=601205.6&s=261660.2&scale=10
 """
@@ -179,7 +185,7 @@ def find_aerial():
 #
 #         dbz.insert_row("scenarios", {"name": name, "created": "now()", "user": username})
 #
-#         for dataset in ["A14"]:
+#         for dataset in ["a14"]:
 #             for table in ["las_chunks", "mesh_chunks"]:
 #                 dbz.create_table_from(f"{name}_{dataset}_{table}", f"{dataset}_{table}" )
 #
@@ -188,12 +194,12 @@ def find_aerial():
 #         return "error!"
 
 
-# ALTER TABLE public.las_chunks
+# ALTER TABLE public."a14_defects_cam"
 # ADD existence tsmultirange;
 #
-# update public.las_chunks set existence = '{[2021-01-01, 2024-06-10]}'
+# update public."a14_las_chunks" set existence = '{[2021-01-01,]}'
 #
-# CREATE INDEX A14_las_chunks_geom
-#     ON public."A14_las_chunks" USING gist
+# CREATE INDEX a14_las_chunks_geom
+#     ON public."a14_las_chunks" USING gist
 #     (geom, existence)
 #     TABLESPACE pg_default;
