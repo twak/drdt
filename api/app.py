@@ -1,14 +1,18 @@
+import flask
 from flask import Flask, request, redirect
-import logging
-import psycopg2
-from shapely.geometry import LineString
 import shapely
 import urllib.request
 import json
+from pathlib import Path
+import flask_login
 from . import utils
 
+
 app = Flask(__name__)
+app.secret_key = Path('api/flask_secret_key').read_text()
 app.debug = True
+login_manager = flask_login.LoginManager()
+login_manager.init_app(app)
 
 def get_nsew(other=[],opt={}):
     vals = {}
@@ -165,7 +169,7 @@ def find_pavement():
 def find_aerial():
 
     vals = get_nsew(opt={"scale":10})
-    if isinstance(vals, str):
+    if isinstance(vals, str)  :
         return vals # error
     for k in vals.keys():
         print(f"{k} {vals[k]}")
@@ -179,32 +183,32 @@ def find_aerial():
                         f"&BBOX={vals['w']}%2C{vals['s']}%2C{vals['e']}%2C{vals['n']}", code=302)
 
 
-# @app.route("/v0/create_scenario")
-# def create_scenario():
-#     try:
-#         name = request.args['name']
-#
-#         scenarios = dbz.get_row("scenarios", name)
-#         if name in scenarios:
-#             return f"scenario {name} already exists"
-#
-#         dbz.insert_row("scenarios", {"name": name, "created": "now()", "user": username})
-#
-#         for dataset in ["a14"]:
-#             for table in ["las_chunks", "mesh_chunks"]:
-#                 dbz.create_table_from(f"{name}_{dataset}_{table}", f"{dataset}_{table}" )
-#
-#         return "success"
-#     except:
-#         return "error!"
+# **************************************** login  ****************************************
 
+import scenarios
 
-# ALTER TABLE public."a14_defects_cam"
-# ADD existence tsmultirange;
-#
-# update public."a14_las_chunks" set existence = '{[2021-01-01,]}'
-#
-# CREATE INDEX a14_las_chunks_geom
-#     ON public."a14_las_chunks" USING gist
-#     (geom, existence)
-#     TABLESPACE pg_default;
+@login_manager.user_loader
+def user_loader(email):
+    return scenarios.user_loader(email)
+
+@login_manager.request_loader
+def request_loader(request):
+    return scenarios.request_loader(request)
+
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    return scenarios.login()
+
+@app.route('/protected')
+@flask_login.login_required
+def protected():
+    return 'Logged in as: ' + flask_login.current_user.id
+
+@app.route('/logout')
+def logout():
+    flask_login.logout_user()
+    return 'Logged out'
+
+@login_manager.unauthorized_handler
+def unauthorized_handler():
+    return 'Unauthorized! <a href="/">login?!</a>', 401

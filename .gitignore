@@ -2,4 +2,4 @@ api/pwd.json
 api/pwd_rw.json
 venv
 *.blend1
-
+api/flask_secret_key
