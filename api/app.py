@@ -184,7 +184,7 @@ def find_aerial():
                         f"&BBOX={vals['w']}%2C{vals['s']}%2C{vals['e']}%2C{vals['n']}", code=302)
 
 
-# **************************************** login  ****************************************
+# **************************************** login & scenarios ****************************************
 
 @login_manager.user_loader
 def user_loader(username):
@@ -199,21 +199,46 @@ def request_loader(request):
 def login():
     return scenarios.login()
 
+@app.route('/logout')
+def logout():
+    flask_login.logout_user()
+    return 'Logged out'
 
 @app.route('/list_scenarios')
 @flask_login.login_required
 def list_scenarios():
     return scenarios.list_scenarios() # 'Logged in as: ' + flask_login.current_user.id
 
-@app.route('/logout')
-def logout():
-    flask_login.logout_user()
-    return 'Logged out'
-
 @login_manager.unauthorized_handler
 def unauthorized_handler():
     return 'Unauthorized! <a href="/">login?!</a>', 401
 
 @app.route ('/create_user', methods=['GET', 'POST'])
+@flask_login.login_required
 def create_user():
     return scenarios.create_user()
+
+@app.route ('/create_scenario', methods=['GET', 'POST'])
+@flask_login.login_required
+def create_scenario():
+    return scenarios.create_scenario()
+
+@app.route ('/show_scenario', methods=['GET', 'POST'])
+@flask_login.login_required
+def show_scenario():
+    return scenarios.show_scenario()
+
+@app.route ('/delete_scenario', methods=['GET', 'POST'])
+@flask_login.login_required
+def delete_scenario():
+    return scenarios.delete_scenario()
+
+@app.route ('/add_table', methods=['GET', 'POST'])
+@flask_login.login_required
+def add_table():
+    return scenarios.add_table()
+
+@app.route ('/delete_table', methods=['GET', 'POST'])
+@flask_login.login_required
+def delete_table():
+    return scenarios.delete_table()

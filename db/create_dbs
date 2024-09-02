@@ -25,7 +25,7 @@ CREATE INDEX IF NOT EXISTS a14_mesh_chunks_geom
     (geom, existence)
     TABLESPACE pg_default;
 
-update public."A14_mesh_chunks" set existence = '{[2021-01-01, 2024-06-10]}'
+update public."A14_mesh_chunks" set existence = '{[2021-01-01,]}'
 
 
 
@@ -56,4 +56,4 @@ CREATE INDEX IF NOT EXISTS a14_las_chunks_geom
     (geom, existence)
     TABLESPACE pg_default;
 
-update public."A14_las_chunks" set existence = '{[2021-01-01, 2024-06-10]}'
+update public."A14_las_chunks" set existence = '{[2021-01-01,]}'

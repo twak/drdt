@@ -15,6 +15,7 @@ api_url = "http://dt.twak.org:5000/"
 start_time = "2024-06-10 00:00:00" # the start of now is the day tom joined dr.
 before_time_range = '{[2021-01-01,]}' # default creation date for cam-highway data
 
+table_name = "dt01"
 
 class Postgres():
     def __init__(self, pass_file="pwd.json"):
@@ -33,6 +34,7 @@ class Postgres():
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
+        self.con.commit()
         self.con.close()
 
 
