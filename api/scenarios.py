@@ -198,24 +198,29 @@ def create_scenario():
             return flask.redirect(flask.url_for('list_scenarios'))
 
 def list_scenarios():
+
+    human = flask_login.current_user.id
+
     page =  f"""
-    <body>
-    <h1>Protected</h1>
-    <p>{flask_login.current_user.id}</p>
-    <p>db password: {flask_login.current_user.postgres}</p> 
-    """
+            <body>
+            <h1>Protected</h1>
+            <p>{flask_login.current_user.id}</p> 
+            """
 
     with utils.Postgres(pass_file="pwd_rw.json") as pg:
         ensure_scenarios(pg)
 
     with utils.Postgres() as pg:
 
-        page = "<html><head><title>all scenarios</title></head><body><a href='/logout'>logout</a>"
+        page += (f"<html><head><title>{human}'s scenarios</title></head><body><a href='/logout'>logout</a>"
+                 f"<p>postgres password: {flask_login.current_user.postgres}</p>")
 
-        page += """ <h4>all scenarios</h4>
+
+        page += f""" <h4>{human}'s scenarios</h4>
+            
             <form action='create_scenario' method='POST'>
                 <input type='text' name='scenario_name' id='scenario_name' placeholder='scenario_name'/>
-                <input type='submit' name='create'/>
+                <input type='submit' name='create' value='create'/>
             </form>
             """
 
@@ -236,9 +241,9 @@ def add_table():
 
     scenario = flask.request.form['scenario_name']
     api_key = flask.request.form['api_key']
-    table_name = flask.request.form['table_name']
+    table_name = flask.request.form['table_name'].strip()
 
-    if len(table_name) < 5:
+    if len(table_name) < 3:
         return "table name too short"
 
     human = flask_login.current_user.id
@@ -272,7 +277,7 @@ def show_scenario():
     elif flask.request.method == 'GET': # we might forward after add_table etc...
         scenario = flask.request.args.get('scenario_name')
 
-    page = f"<html><head><title>{scenario}</title></head><body><a href='/logout'>logout</a>"
+    page = f"<html><head><title>{scenario}</title></head><body><a href='/logout'>logout</a> | <a href='/list_scenarios'>list scenarios</a>"
 
     with utils.Postgres(pass_file="pwd_rw.json") as pg:
         ensure_scenario_tables(pg)
@@ -290,13 +295,13 @@ def show_scenario():
         pg.cur.execute( f"SELECT table_name FROM public.scenario_tables WHERE api_key = '{api_key}';" )
 
         page += (f"<h4>tables for {human_name}'s scenario {scenario}.</h4>"
-                 f"<p> api_key {api_key}. postgres password {flask_login.current_user.postgres}.</p>"
-                 f"<form action='/delete_scenario' method='post' onsubmit='return confirm(\"Really delete {scenario}?\")'><button type='submit' name='scenario_name' value='{scenario}'>delete</button></form>"
+                 f"<p>api_key {api_key}.</p><p>postgres password {flask_login.current_user.postgres}.</p>"
+                 f"<form action='/delete_scenario' method='post' onsubmit='return confirm(\"Really delete scenario {scenario}?\")'><button type='submit' name='scenario_name' value='{scenario}'>delete scenario</button></form>"
                     f"<form action='add_table' method='POST'>"
                     f"<input type='text' name='table_name' id='table_name' placeholder='new_table_name'/>"
                     f"<input type='hidden' name='scenario_name' value='{scenario}' />"
                     f"<input type='hidden' name='api_key' value='{api_key}' />"
-                    f"<input type='submit' name='create'/>"
+                    f"<input type='submit' name='create' value='create'/>"
                     f"</form>"
                  f"<table border='1'><tr><th>table_name</th><th>columns</th></tr>")
 
@@ -319,12 +324,7 @@ def show_scenario():
 
     return page
 
-def delete_table():
-
-    scenario = flask.request.form['scenario_name']
-    table_name = flask.request.form['table_name']
-    human = flask_login.current_user.id
-
+def do_delete_table(table_name, human):
     if not table_name.startswith("__"):
         return f"can't delete {table}"
 
@@ -337,8 +337,36 @@ def delete_table():
         pg.cur.execute(f"DROP TABLE {table_name};")
         pg.cur.execute(f"DELETE FROM public.scenario_tables WHERE table_name = '{table_name}' and human_name = '{human}';")
 
+
+def delete_table():
+
+    scenario = flask.request.form['scenario_name']
+    table_name = flask.request.form['table_name']
+    human = flask_login.current_user.id
+
+    do_delete_table( table_name, human)
+
     return flask.redirect(flask.url_for('show_scenario', scenario_name=scenario))
 
+def delete_scenario():
+
+    scenario = flask.request.form['scenario_name']
+    human = flask_login.current_user.id
+
+    with utils.Postgres(pass_file="pwd_rw.json") as pg:
+
+        pg.cur.execute(f"SELECT scenario FROM public.scenario_tables WHERE scenario = '{scenario}' and human_name = '{human}';")
+        if not pg.cur.fetchone():
+            return f"can't find scenario {scenario}"
+
+        # delete all tables related to scenario
+        pg.cur.execute(f"SELECT table_name,human_name FROM public.scenario_tables WHERE scenario = '{scenario}' and human_name = '{human}';")
+        for row in pg.cur:
+            do_delete_table(row[0], row[1]) # also deletes the sql tables
+
+        pg.cur.execute(f"DELETE FROM public.scenarios WHERE scenario = '{scenario}' and human_name = '{human}';")
+
+    return flask.redirect(flask.url_for('list_scenarios'))
 
 def logout():
     flask_login.logout_user()
