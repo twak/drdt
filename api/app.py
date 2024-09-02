@@ -5,7 +5,8 @@ import urllib.request
 import json
 from pathlib import Path
 import flask_login
-from . import utils
+from . import utils, scenarios
+
 
 
 app = Flask(__name__)
@@ -185,12 +186,11 @@ def find_aerial():
 
 # **************************************** login  ****************************************
 
-import scenarios
-
 @login_manager.user_loader
-def user_loader(email):
-    return scenarios.user_loader(email)
+def user_loader(username):
+    return scenarios.user_loader(username)
 
+# this one is used for api_keys
 @login_manager.request_loader
 def request_loader(request):
     return scenarios.request_loader(request)
@@ -199,10 +199,11 @@ def request_loader(request):
 def login():
     return scenarios.login()
 
-@app.route('/protected')
+
+@app.route('/list_scenarios')
 @flask_login.login_required
-def protected():
-    return 'Logged in as: ' + flask_login.current_user.id
+def list_scenarios():
+    return scenarios.list_scenarios() # 'Logged in as: ' + flask_login.current_user.id
 
 @app.route('/logout')
 def logout():
@@ -212,3 +213,7 @@ def logout():
 @login_manager.unauthorized_handler
 def unauthorized_handler():
     return 'Unauthorized! <a href="/">login?!</a>', 401
+
+@app.route ('/create_user', methods=['GET', 'POST'])
+def create_user():
+    return scenarios.create_user()

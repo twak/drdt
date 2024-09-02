@@ -1,6 +1,7 @@
 import json
 import psycopg2
 
+domain = "http://dt.twak.org:5000"
 sevenseven = 27700
 cur, con = None, None
 
