@@ -67,10 +67,11 @@ def ensure_humans(pg):
     pg.cur.execute("CREATE TABLE IF NOT EXISTS public.humans (human_name text PRIMARY KEY, wordhash text, postgres text);")
 
 def ensure_scenarios(pg):
-    pg.cur.execute("CREATE TABLE IF NOT EXISTS public.scenarios (scenario text PRIMARY KEY, human_name text, api_key text unique);")
+    pg.cur.execute("CREATE TABLE IF NOT EXISTS public.scenarios (scenario text PRIMARY KEY, human_name text REFERENCES humans, api_key text unique);")
 
 def ensure_scenario_tables(pg):
-    pg.cur.execute("CREATE TABLE IF NOT EXISTS public.scenario_tables (scenario text, table_name text, api_key text, human_name text);")
+    pg.cur.execute("CREATE TABLE IF NOT EXISTS public.scenario_tables (scenario text REFERENCES scenarios, table_name text, api_key text, human_name text REFERENCES humans, base text);")
+    pg.cur.execute("CREATE SCHEMA IF NOT EXISTS scenario;")
 
 
 def is_admin():
@@ -83,19 +84,26 @@ def create_user():
         return "unauthorized - ask <a href='mailto:twk22@cam.ac.uk'>tom</a> to create a user! (or <a href='/login'>login</a>)", 401
 
     if flask.request.method == 'GET':
-        return '''
+        out = '''
                 <form action='create_user' method='POST'>
                 <input type='text' name='username' id='username' placeholder='username'/>
                 <input type='submit' name='create'/>
                </form>
                '''
 
+        with utils.Postgres(pass_file="pwd_rw.json") as pg:
+            pg.cur.execute( f"SELECT * FROM public.humans;" )
+            out += "<p>existing users:</p><ul>"
+            for row in pg.cur:
+                out += f"<li>{row[0]}<form action='/delete_user' method='post'><button type='submit' name='human' value='{row[0]}' onsubmit='return confirm(\"Really delete user {row[0]}?\")'>delete</button></form></li>"
+            out += "</ul>"
+
+        return out
+
     if flask.request.method == 'POST':
         with utils.Postgres(pass_file="pwd_rw.json") as pg:
 
-            ensure_humans(pg)
-
-            pg.con.commit()
+            # ensure_humans(pg)
 
             username = flask.request.form['username']
             mixin = uuid.uuid4()
@@ -118,14 +126,14 @@ def create_user():
             pg.cur.execute( f"GRANT CONNECT ON DATABASE {utils.table_name} TO {username};")
             pg.cur.execute( f"GRANT USAGE ON SCHEMA public TO {username};")
 
-            # for db in all_base_dbs_it():
-            #     try:
-            #         pg.cur.execute( f"GRANT SELECT ON {db} TO {username};")
-            #
-            #         ensure_scenario_tables(pg)
-            #         pg.cur.execute(f"INSERT INTO public.scenario_tables VALUES ('{scenario}', '{tn}');")
-            #     except:
-            #         pass
+            for db in all_base_dbs_it():
+                try:
+                    pg.cur.execute( f"GRANT SELECT ON {db} TO {username};")
+                    # ensure_scenario_tables(pg)
+                    # pg.cur.execute(f"INSERT INTO public.scenario_tables VALUES ('{scenario}', '{tn}');")
+
+                except:
+                    pass
 
             pg.con.commit()
 
@@ -135,15 +143,10 @@ def create_user():
             <p>You can create scenarios (for writable databases) on <a href="{utils.domain}/list_scenarios">this page</a>.</p>
             """
 
-def delete_user():
-    pass
-    # delete tables, scenarios, user
-    # REASSIGN OWNED BY twak to postgres;
-    # drop owned by twak;
-    # drop user twak;
-
-
 def login():
+
+    if flask_login.current_user.is_authenticated:
+        return flask.redirect(flask.url_for('list_scenarios'))
 
     if flask.request.method == 'GET':
         return '''
@@ -183,7 +186,7 @@ def create_scenario():
     if flask.request.method == 'POST':
         with utils.Postgres(pass_file="pwd_rw.json") as pg:
 
-            ensure_scenarios(pg)
+            # ensure_scenarios(pg)
 
             scenario_name = flask.request.form['scenario_name']
 
@@ -195,6 +198,11 @@ def create_scenario():
 
             pg.cur.execute( f"INSERT INTO public.scenarios VALUES ('{scenario_name}', '{flask_login.current_user.id}', '{api_key}');" )
 
+            pg.con.commit()
+
+            for table in all_base_dbs_it():
+                do_add_table(scenario_name, api_key, table, like=f"public.{table}")
+
             return flask.redirect(flask.url_for('list_scenarios'))
 
 def list_scenarios():
@@ -203,16 +211,15 @@ def list_scenarios():
 
     page =  f"""
             <body>
-            <h1>Protected</h1>
-            <p>{flask_login.current_user.id}</p> 
             """
 
-    with utils.Postgres(pass_file="pwd_rw.json") as pg:
-        ensure_scenarios(pg)
+    # with utils.Postgres(pass_file="pwd_rw.json") as pg:
+    #     ensure_scenarios(pg)
 
     with utils.Postgres() as pg:
 
-        page += (f"<html><head><title>{human}'s scenarios</title></head><body><a href='/logout'>logout</a>"
+        page += (f"<html><head><title>{human}'s scenarios</title></head><body>"
+                 f"<h4>{flask_login.current_user.id}</h4><a href='/logout'>logout</a>"
                  f"<p>postgres password: {flask_login.current_user.postgres}</p>")
 
 
@@ -236,6 +243,34 @@ def list_scenarios():
 
         return page
 
+def do_add_table(scenario, api_key, table_name, like=None):
+    human = flask_login.current_user.id
+
+    tn = f"{human}_{scenario}_{table_name}"
+
+    with utils.Postgres(pass_file="pwd_rw.json") as pg:
+
+        pg.cur.execute(f"SELECT EXISTS ("
+           f"SELECT 1 "
+           f"FROM pg_tables "
+           f"WHERE schemaname = 'scenario' "
+           f"AND tablename = '{tn}' "
+        ");")
+
+        if pg.cur.fetchone()[0]:
+            return f"table {tn} already exists"
+
+        ls = f"'{like}'" if like else "NULL"
+
+        # ensure_scenario_tables(pg)
+        pg.cur.execute(f"INSERT INTO public.scenario_tables VALUES ('{scenario}', '{tn}', '{api_key}', '{human}', {ls});")
+
+        pg.con.commit()
+
+        sl = f"LIKE {like} INCLUDING ALL" if like else ""
+
+        pg.cur.execute(f"CREATE TABLE IF NOT EXISTS scenario.{tn} ({sl});")
+        pg.cur.execute(f"ALTER TABLE scenario.{tn} OWNER TO {human};")
 
 def add_table():
 
@@ -246,27 +281,7 @@ def add_table():
     if len(table_name) < 3:
         return "table name too short"
 
-    human = flask_login.current_user.id
-
-    tn = f"__{human}_{scenario}_{table_name}"
-
-    with utils.Postgres(pass_file="pwd_rw.json") as pg:
-
-        pg.cur.execute(f"SELECT EXISTS ("
-           f"SELECT 1 "
-           f"FROM pg_tables "
-           f"WHERE schemaname = 'public' "
-           f"AND tablename = '{tn}' "
-        ");")
-
-        if pg.cur.fetchone()[0]:
-            return f"table {tn} already exists"
-
-        ensure_scenario_tables(pg)
-        pg.cur.execute(f"INSERT INTO public.scenario_tables VALUES ('{scenario}', '{tn}', '{api_key}', '{human}');")
-
-        pg.cur.execute(f"CREATE TABLE IF NOT EXISTS public.{tn} ();")
-        pg.cur.execute(f"ALTER TABLE public.{tn} OWNER TO {human};")
+    do_add_table(scenario, api_key, table_name)
 
     return flask.redirect(flask.url_for('show_scenario', scenario_name=scenario))
 
@@ -279,8 +294,8 @@ def show_scenario():
 
     page = f"<html><head><title>{scenario}</title></head><body><a href='/logout'>logout</a> | <a href='/list_scenarios'>list scenarios</a>"
 
-    with utils.Postgres(pass_file="pwd_rw.json") as pg:
-        ensure_scenario_tables(pg)
+    # with utils.Postgres(pass_file="pwd_rw.json") as pg:
+    #     ensure_scenario_tables(pg)
 
     with utils.Postgres() as pg:
         pg.cur.execute( f"SELECT scenario, api_key, human_name FROM public.scenarios WHERE scenario = '{scenario}' AND human_name = '{flask_login.current_user.id}';" )
@@ -311,11 +326,11 @@ def show_scenario():
             with utils.Postgres() as pg2:
                 pg2.cur.execute(f"""SELECT *
                                     FROM information_schema.columns
-                                    WHERE table_schema = 'public'
+                                    WHERE table_schema = 'scenario'
                                     AND table_name   = '{table_name}'
                                 ;""")
                 for row in pg2.cur:
-                    page += row[0]+", "
+                    page += f"{row[3]}, "
             page += ("</td>"
                         f"<td>"
                      f"<form action='/delete_table' method='post' onsubmit='return confirm(\"Really delete table {table_name}?\")'><button type='submit' name='table_name' value='{table_name}'>delete</button><input type='hidden' name='scenario_name' value='{scenario}' /></form>"
@@ -325,8 +340,6 @@ def show_scenario():
     return page
 
 def do_delete_table(table_name, human):
-    if not table_name.startswith("__"):
-        return f"can't delete {table}"
 
     with utils.Postgres(pass_file="pwd_rw.json") as pg:
 
@@ -334,9 +347,51 @@ def do_delete_table(table_name, human):
         if not pg.cur.fetchone():
             return f"can't find table {table_name}"
 
-        pg.cur.execute(f"DROP TABLE {table_name};")
-        pg.cur.execute(f"DELETE FROM public.scenario_tables WHERE table_name = '{table_name}' and human_name = '{human}';")
+        try:
+            pg.cur.execute(f"DROP TABLE scenario.{table_name};")
+        except:
+            pass
 
+        with utils.Postgres(pass_file="pwd_rw.json") as pg2:
+            try:
+                pg2.cur.execute(f"DELETE FROM public.scenario_tables WHERE table_name = '{table_name}' and human_name = '{human}';")
+            except:
+                pass
+
+def do_delete_scenario(scenario, human):
+
+    with utils.Postgres(pass_file="pwd_rw.json") as pg:
+        pg.cur.execute(f"SELECT scenario FROM public.scenarios WHERE scenario = '{scenario}' and human_name = '{human}';")
+        if not pg.cur.fetchone():
+            return f"can't find scenario {scenario}"
+
+        # delete all tables related to scenario
+        pg.cur.execute(f"SELECT table_name,human_name FROM public.scenario_tables WHERE scenario = '{scenario}' and human_name = '{human}';")
+        for row in pg.cur:
+            do_delete_table(row[0], row[1]) # also deletes the sql tables
+
+        pg.cur.execute(f"DELETE FROM public.scenarios WHERE scenario = '{scenario}' and human_name = '{human}';")
+
+def do_delete_human (human):
+
+    if not is_admin() or human == 'twak':
+        return "unauthorized", 401
+
+    with utils.Postgres(pass_file="pwd_rw.json") as pg:
+        pg.cur.execute(f"SELECT scenario FROM public.scenario_tables WHERE human_name = '{human}';")
+        for row in pg.cur:
+            do_delete_scenario(row[0], human)
+
+        pg.cur.execute(f"DELETE FROM public.humans WHERE human_name = '{human}';")
+        
+        pg.cur.execute(f"REASSIGN OWNED BY {human} TO twak;"
+                       f"DROP OWNED BY {human};"
+                       f"DROP USER IF EXISTS {human};")
+
+def delete_user():
+    human = flask.request.form['human']
+    do_delete_human(human)
+    return flask.redirect(flask.url_for('create_user'))
 
 def delete_table():
 
@@ -353,24 +408,13 @@ def delete_scenario():
     scenario = flask.request.form['scenario_name']
     human = flask_login.current_user.id
 
-    with utils.Postgres(pass_file="pwd_rw.json") as pg:
-
-        pg.cur.execute(f"SELECT scenario FROM public.scenario_tables WHERE scenario = '{scenario}' and human_name = '{human}';")
-        if not pg.cur.fetchone():
-            return f"can't find scenario {scenario}"
-
-        # delete all tables related to scenario
-        pg.cur.execute(f"SELECT table_name,human_name FROM public.scenario_tables WHERE scenario = '{scenario}' and human_name = '{human}';")
-        for row in pg.cur:
-            do_delete_table(row[0], row[1]) # also deletes the sql tables
-
-        pg.cur.execute(f"DELETE FROM public.scenarios WHERE scenario = '{scenario}' and human_name = '{human}';")
+    do_delete_scenario( scenario, human)
 
     return flask.redirect(flask.url_for('list_scenarios'))
 
 def logout():
     flask_login.logout_user()
-    return 'Logged out'
+    return flask.redirect(flask.url_for('/'))
 
 def unauthorized_handler():
     return 'Unauthorized! <a href="/">login?!</a>', 401

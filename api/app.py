@@ -32,7 +32,40 @@ def get_nsew(other=[],opt={}):
 
 @app.route('/')
 def index():
-    return "<html><body>i am a drdt; a digital twin</body></html>"
+
+    if flask_login.current_user.is_authenticated:
+        return flask.redirect(flask.url_for('list_scenarios'))
+
+    # https://stackoverflow.com/questions/13317536/get-list-of-all-routes-defined-in-the-flask-app
+    def has_no_empty_params(rule):
+        defaults = rule.defaults if rule.defaults is not None else ()
+        arguments = rule.arguments if rule.arguments is not None else ()
+        return len(defaults) >= len(arguments)
+
+    links = []
+    for rule in app.url_map.iter_rules():
+        # Filter out rules we can't navigate to in a browser
+        # and rules that require parameters
+        if has_no_empty_params(rule):
+            url = flask.url_for(rule.endpoint, **(rule.defaults or {}))
+
+            methods = list ( rule.methods )
+            methods.remove("OPTIONS")
+            methods.remove("HEAD")
+
+            links.append(f"<a href='{url}'>{rule.endpoint}</a>: {', '.join(methods)}")
+            # links.append((url, rule.endpoint))
+
+    out = ("<html><head><title>drdt</title></head><body><h4>i am drdt; a digital twin</h4>"
+          "<p>would you like to <a href='/login'>login</a>?</p>"
+        "<p>serving endpoints:</p> <ul>")
+
+    for link in links:
+        out += f"<li>{link}</li><br>"
+
+    out +=  "</ul></body></html>"
+
+    return out
 
 
 def envelope(vals):
@@ -217,6 +250,11 @@ def unauthorized_handler():
 @flask_login.login_required
 def create_user():
     return scenarios.create_user()
+
+@app.route ('/delete_user', methods=['POST'])
+@flask_login.login_required
+def delete_user():
+    return scenarios.delete_user()
 
 @app.route ('/create_scenario', methods=['GET', 'POST'])
 @flask_login.login_required
