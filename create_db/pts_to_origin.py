@@ -45,8 +45,8 @@ def run_pdal_scripts(workdir, las_files, x, y, name):
                     "bounds":"([0,10],[0,10])"
                 }},
                 {{
-                    "type": "writers.e57",
-                    "filename": "{name}.e57"
+                    "type": "writers.las",
+                    "filename": "{name}.las"
                 }}
                 ]
                 ''')
@@ -60,7 +60,7 @@ def merge_and_filter_pts(workdir,  x,y, name):
 
     las_files = list ( filter (lambda x : x.endswith(".las"), os.listdir(workdir ) ) )
     run_pdal_scripts(workdir, las_files, x,y, name )
-    return os.path.exists(os.path.join(workdir, f"{name}.e57"))
+    return os.path.exists(os.path.join(workdir, f"{name}.las"))
 
 def go():
 
@@ -94,7 +94,7 @@ def go():
 
             # workdir = os.path.join (utils.nas_mount+utils.mesh_route, f"{origin.x}_{origin.y}" )
             chunk_name = f"w_{origin.x}_{origin.y}" # _w_indows friendly filename
-            chunk_file = f"{chunk_name}.e57"
+            chunk_file = f"{chunk_name}.las"
 
             if os.path.exists(f"{lasos}/{chunk_file}"):
                 print(f"output {chunk_file} already exists, skipping")

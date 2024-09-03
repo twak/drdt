@@ -89,7 +89,7 @@ def create_user():
                 <form action='create_user' method='POST'>
                 <input type='text' name='username' id='username' placeholder='username'/>
                 <input type='submit' name='create' value='create'/>
-               </form>
+                </form>
                '''
 
         with utils.Postgres(pass_file="pwd_rw.json") as pg:

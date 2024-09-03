@@ -1,59 +1,482 @@
--- Table: public.A14_mesh_chunks
 
--- DROP TABLE IF EXISTS public."A14_mesh_chunks";
 
-CREATE TABLE IF NOT EXISTS public."A14_mesh_chunks"
-(
-    geom geometry(Polygon,27700),
-    name text COLLATE pg_catalog."default",
-    nas text COLLATE pg_catalog."default",
-    files text COLLATE pg_catalog."default",
-    origin geometry(Point,27700),
+ALTER SEQUENCE public."A14_defects_cam_id_seq" OWNER TO postgres;
+
+--
+-- TOC entry 4980 (class 0 OID 0)
+-- Dependencies: 236
+-- Name: A14_defects_cam_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."A14_defects_cam_id_seq" OWNED BY public.a14_defects_cam.id;
+
+
+--
+-- TOC entry 225 (class 1259 OID 18272)
+-- Name: a14_defects_korec; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.a14_defects_korec (
+    id integer NOT NULL,
+    geom public.geometry(MultiPolygon,27700),
+    type character varying(254),
+    orig_img character varying(193),
+    label_img character varying(188),
+    area_msq double precision,
+    scheme character varying(254),
+    "GUID" character varying(254),
+    "LaneNo" integer,
+    "SECTION" character varying(254),
+    "STCHAIN" double precision,
+    "ENDCHAIN" double precision,
+    "CHAINGRP" character varying(254),
+    "DIRECTION" character varying(254)
+);
+
+
+ALTER TABLE public.a14_defects_korec OWNER TO postgres;
+
+--
+-- TOC entry 224 (class 1259 OID 18271)
+-- Name: A14_defects_korec_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public."A14_defects_korec_id_seq"
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public."A14_defects_korec_id_seq" OWNER TO postgres;
+
+--
+-- TOC entry 4982 (class 0 OID 0)
+-- Dependencies: 224
+-- Name: A14_defects_korec_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public."A14_defects_korec_id_seq" OWNED BY public.a14_defects_korec.id;
+
+
+--
+-- TOC entry 240 (class 1259 OID 27761)
+-- Name: a14_las_chunks; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.a14_las_chunks (
+    geom public.geometry,
+    type text,
+    name text,
+    nas text,
+    origin public.geometry(Point,27700),
     existence tsmultirange
-)
+);
 
-TABLESPACE pg_default;
 
-ALTER TABLE IF EXISTS public."A14_mesh_chunks"
-    OWNER to postgres;
--- Index: a14_mesh_chunks_geom
+ALTER TABLE public.a14_las_chunks OWNER TO postgres;
 
--- DROP INDEX IF EXISTS public.a14_mesh_chunks_geom;
+--
+-- TOC entry 254 (class 1259 OID 30140)
+-- Name: a14_laso_chunks; Type: TABLE; Schema: public; Owner: postgres
+--
 
-CREATE INDEX IF NOT EXISTS a14_mesh_chunks_geom
-    ON public."A14_mesh_chunks" USING gist
-    (geom, existence)
-    TABLESPACE pg_default;
+CREATE TABLE public.a14_laso_chunks (
+    geom public.geometry(Polygon,27700),
+    name text,
+    nas text,
+    origin public.geometry(Point,27700),
+    existence tsmultirange
+);
+
+
+ALTER TABLE public.a14_laso_chunks OWNER TO postgres;
+
+--
+-- TOC entry 241 (class 1259 OID 27859)
+-- Name: a14_mesh_chunks; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.a14_mesh_chunks (
+    geom public.geometry(Polygon,27700),
+    name text,
+    nas text,
+    files text,
+    origin public.geometry(Point,27700),
+    existence tsmultirange
+);
+
+
+ALTER TABLE public.a14_mesh_chunks OWNER TO postgres;
+
+--
+-- TOC entry 223 (class 1259 OID 17473)
+-- Name: a14_os; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.a14_os (
+    id bigint NOT NULL,
+    geom public.geometry(Polygon,27700),
+    fid character varying(200),
+    featurecode integer,
+    version integer,
+    versiondate date,
+    theme character varying(50),
+    calculatedareavalue character varying(200),
+    changedate character varying,
+    reasonforchange character varying,
+    descriptivegroup character varying(100),
+    descriptiveterm character varying,
+    make character varying(12),
+    physicallevel integer,
+    physicalpresence character varying(12),
+    poly_broken character varying(5)
+);
+
+
+ALTER TABLE public.a14_os OWNER TO postgres;
+
+--
+-- TOC entry 239 (class 1259 OID 27748)
+-- Name: a14_panos; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.a14_panos (
+    id integer NOT NULL,
+    geom public.geometry(Point,27700),
+    fid bigint,
+    lat double precision,
+    long double precision,
+    file_name character varying,
+    url character varying
+);
+
+
+ALTER TABLE public.a14_panos OWNER TO postgres;
+
+--
+-- TOC entry 253 (class 1259 OID 30123)
+-- Name: a14_segments; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.a14_segments (
+    id integer NOT NULL,
+    geom public.geometry(MultiLineString,27700),
+    "Section_La" character varying(80),
+    "Section_St" numeric,
+    "Section_En" numeric,
+    "Length" numeric,
+    "Start_Date" character varying(80),
+    "End_Date" character varying(80),
+    "Section_Fu" character varying(80),
+    "Road_Numbe" character varying(80),
+    "Road_Name" character varying(80),
+    "Road_Class" character varying(80),
+    "Single_or_" character varying(80)
+);
+
+
+ALTER TABLE public.a14_segments OWNER TO postgres;
+
+--
+-- TOC entry 252 (class 1259 OID 30122)
+-- Name: a14_segments_id_seq; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.a14_segments_id_seq
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.a14_segments_id_seq OWNER TO postgres;
+
+--
+-- TOC entry 4986 (class 0 OID 0)
+-- Dependencies: 252
+-- Name: a14_segments_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.a14_segments_id_seq OWNED BY public.a14_segments.id;
+
+
+--
+-- TOC entry 242 (class 1259 OID 29881)
+-- Name: humans; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.humans (
+    human_name text NOT NULL,
+    wordhash text,
+    postgres text
+);
+
+
+ALTER TABLE public.humans OWNER TO postgres;
+
+--
+-- TOC entry 238 (class 1259 OID 27747)
+-- Name: panos_id_seq1; Type: SEQUENCE; Schema: public; Owner: postgres
+--
+
+CREATE SEQUENCE public.panos_id_seq1
+    AS integer
+    START WITH 1
+    INCREMENT BY 1
+    NO MINVALUE
+    NO MAXVALUE
+    CACHE 1;
+
+
+ALTER SEQUENCE public.panos_id_seq1 OWNER TO postgres;
+
+--
+-- TOC entry 4987 (class 0 OID 0)
+-- Dependencies: 238
+-- Name: panos_id_seq1; Type: SEQUENCE OWNED BY; Schema: public; Owner: postgres
+--
+
+ALTER SEQUENCE public.panos_id_seq1 OWNED BY public.a14_panos.id;
+
+
+--
+-- TOC entry 244 (class 1259 OID 29903)
+-- Name: scenario_tables; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.scenario_tables (
+    scenario text,
+    table_name text,
+    api_key text,
+    human_name text,
+    base text
+);
+
+
+ALTER TABLE public.scenario_tables OWNER TO postgres;
+
+--
+-- TOC entry 243 (class 1259 OID 29889)
+-- Name: scenarios; Type: TABLE; Schema: public; Owner: postgres
+--
+
+CREATE TABLE public.scenarios (
+    scenario text NOT NULL,
+    human_name text,
+    api_key text
+);
+
+
+ALTER TABLE public.scenarios OWNER TO postgres;
+
+--
+-- TOC entry 4799 (class 2604 OID 19960)
+-- Name: a14_defects_cam id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.a14_defects_cam ALTER COLUMN id SET DEFAULT nextval('public."A14_defects_cam_id_seq"'::regclass);
+
+
+--
+-- TOC entry 4798 (class 2604 OID 18275)
+-- Name: a14_defects_korec id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.a14_defects_korec ALTER COLUMN id SET DEFAULT nextval('public."A14_defects_korec_id_seq"'::regclass);
+
+
+--
+-- TOC entry 4800 (class 2604 OID 27751)
+-- Name: a14_panos id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.a14_panos ALTER COLUMN id SET DEFAULT nextval('public.panos_id_seq1'::regclass);
+
+
+--
+-- TOC entry 4801 (class 2604 OID 30126)
+-- Name: a14_segments id; Type: DEFAULT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.a14_segments ALTER COLUMN id SET DEFAULT nextval('public.a14_segments_id_seq'::regclass);
+
+
+--
+-- TOC entry 4803 (class 2606 OID 17477)
+-- Name: a14_os A14_OS_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.a14_os
+    ADD CONSTRAINT "A14_OS_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4808 (class 2606 OID 19962)
+-- Name: a14_defects_cam A14_defects_cam_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.a14_defects_cam
+    ADD CONSTRAINT "A14_defects_cam_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4805 (class 2606 OID 18277)
+-- Name: a14_defects_korec A14_defects_korec_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.a14_defects_korec
+    ADD CONSTRAINT "A14_defects_korec_pkey" PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4821 (class 2606 OID 30128)
+-- Name: a14_segments a14_segments_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.a14_segments
+    ADD CONSTRAINT a14_segments_pkey PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4815 (class 2606 OID 29887)
+-- Name: humans humans_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.humans
+    ADD CONSTRAINT humans_pkey PRIMARY KEY (human_name);
+
+
+--
+-- TOC entry 4811 (class 2606 OID 27753)
+-- Name: a14_panos panos_pkey1; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.a14_panos
+    ADD CONSTRAINT panos_pkey1 PRIMARY KEY (id);
+
+
+--
+-- TOC entry 4817 (class 2606 OID 29897)
+-- Name: scenarios scenarios_api_key_key; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.scenarios
+    ADD CONSTRAINT scenarios_api_key_key UNIQUE (api_key);
+
+
+--
+-- TOC entry 4819 (class 2606 OID 29895)
+-- Name: scenarios scenarios_pkey; Type: CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.scenarios
+    ADD CONSTRAINT scenarios_pkey PRIMARY KEY (scenario);
+
+
+--
+-- TOC entry 4809 (class 1259 OID 29632)
+-- Name: a14_defects_cam_geom; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX a14_defects_cam_geom ON public.a14_defects_cam USING gist (geom, existence);
+
+
+--
+-- TOC entry 4812 (class 1259 OID 29634)
+-- Name: a14_las_chunks_geom; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX a14_las_chunks_geom ON public.a14_las_chunks USING gist (geom, existence);
+
+
+--
+-- TOC entry 4813 (class 1259 OID 29633)
+-- Name: a14_mesh_chunks_geom; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX a14_mesh_chunks_geom ON public.a14_mesh_chunks USING gist (geom, existence);
+
+
+--
+-- TOC entry 4806 (class 1259 OID 19352)
+-- Name: sidx_A14_defects_korec_geom; Type: INDEX; Schema: public; Owner: postgres
+--
+
+CREATE INDEX "sidx_A14_defects_korec_geom" ON public.a14_defects_korec USING gist (geom);
+
+
+--
+-- TOC entry 4823 (class 2606 OID 29908)
+-- Name: scenario_tables scenario_tables_scenario_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.scenario_tables
+    ADD CONSTRAINT scenario_tables_scenario_fkey FOREIGN KEY (scenario) REFERENCES public.scenarios(scenario);
+
+
+--
+-- TOC entry 4822 (class 2606 OID 29898)
+-- Name: scenarios scenarios_human_name_fkey; Type: FK CONSTRAINT; Schema: public; Owner: postgres
+--
+
+ALTER TABLE ONLY public.scenarios
+    ADD CONSTRAINT scenarios_human_name_fkey FOREIGN KEY (human_name) REFERENCES public.humans(human_name);
+
+
+--
+-- TOC entry 4979 (class 0 OID 0)
+-- Dependencies: 237
+-- Name: TABLE a14_defects_cam; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.a14_defects_cam TO test;
+GRANT SELECT ON TABLE public.a14_defects_cam TO test2;
+GRANT SELECT ON TABLE public.a14_defects_cam TO bob;
+GRANT SELECT ON TABLE public.a14_defects_cam TO fred;
+
+
+--
+-- TOC entry 4981 (class 0 OID 0)
+-- Dependencies: 225
+-- Name: TABLE a14_defects_korec; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.a14_defects_korec TO test;
+GRANT SELECT ON TABLE public.a14_defects_korec TO test2;
+GRANT SELECT ON TABLE public.a14_defects_korec TO bob;
+GRANT SELECT ON TABLE public.a14_defects_korec TO fred;
+
+
+--
+-- TOC entry 4983 (class 0 OID 0)
+-- Dependencies: 240
+-- Name: TABLE a14_las_chunks; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.a14_las_chunks TO test;
+GRANT SELECT ON TABLE public.a14_las_chunks TO test2;
+GRANT SELECT ON TABLE public.a14_las_chunks TO bob;
+GRANT SELECT ON TABLE public.a14_las_chunks TO fred;
+
+
+--
+-- TOC entry 4984 (class 0 OID 0)
+-- Dependencies: 241
+-- Name: TABLE a14_mesh_chunks; Type: ACL; Schema: public; Owner: postgres
+--
+
+GRANT SELECT ON TABLE public.a14_mesh_chunks TO test;
+GRANT SELECT ON TABLE public.a14_mesh_chunks TO test2;
+GRANT SELECT ON TABLE public.a14_mesh_chunks TO bob;
+GRANT SELECT ON TABLE public.a14_mesh_chunks TO fred;
+
+
 
 update public."A14_mesh_chunks" set existence = '{[2021-01-01,]}'
-
-
-
--- Table: public.A14_las_chunks
-
--- DROP TABLE IF EXISTS public."A14_las_chunks";
-
-CREATE TABLE IF NOT EXISTS public."A14_las_chunks"
-(
-    geom geometry,
-    type text COLLATE pg_catalog."default",
-    name text COLLATE pg_catalog."default",
-    nas text COLLATE pg_catalog."default",
-    origin geometry(Point,27700),
-    existence tsmultirange
-)
-
-TABLESPACE pg_default;
-
-ALTER TABLE IF EXISTS public."A14_las_chunks"
-    OWNER to postgres;
--- Index: a14_las_chunks_geom
-
--- DROP INDEX IF EXISTS public.a14_las_chunks_geom;
-
-CREATE INDEX IF NOT EXISTS a14_las_chunks_geom
-    ON public."A14_las_chunks" USING gist
-    (geom, existence)
-    TABLESPACE pg_default;
-
 update public."A14_las_chunks" set existence = '{[2021-01-01,]}'
+update public."A14_laso_chunks" set existence = '{[2021-01-01,]}'
