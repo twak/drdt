@@ -428,55 +428,6 @@ ALTER TABLE ONLY public.scenarios
     ADD CONSTRAINT scenarios_human_name_fkey FOREIGN KEY (human_name) REFERENCES public.humans(human_name);
 
 
---
--- TOC entry 4979 (class 0 OID 0)
--- Dependencies: 237
--- Name: TABLE a14_defects_cam; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.a14_defects_cam TO test;
-GRANT SELECT ON TABLE public.a14_defects_cam TO test2;
-GRANT SELECT ON TABLE public.a14_defects_cam TO bob;
-GRANT SELECT ON TABLE public.a14_defects_cam TO fred;
-
-
---
--- TOC entry 4981 (class 0 OID 0)
--- Dependencies: 225
--- Name: TABLE a14_defects_korec; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.a14_defects_korec TO test;
-GRANT SELECT ON TABLE public.a14_defects_korec TO test2;
-GRANT SELECT ON TABLE public.a14_defects_korec TO bob;
-GRANT SELECT ON TABLE public.a14_defects_korec TO fred;
-
-
---
--- TOC entry 4983 (class 0 OID 0)
--- Dependencies: 240
--- Name: TABLE a14_las_chunks; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.a14_las_chunks TO test;
-GRANT SELECT ON TABLE public.a14_las_chunks TO test2;
-GRANT SELECT ON TABLE public.a14_las_chunks TO bob;
-GRANT SELECT ON TABLE public.a14_las_chunks TO fred;
-
-
---
--- TOC entry 4984 (class 0 OID 0)
--- Dependencies: 241
--- Name: TABLE a14_mesh_chunks; Type: ACL; Schema: public; Owner: postgres
---
-
-GRANT SELECT ON TABLE public.a14_mesh_chunks TO test;
-GRANT SELECT ON TABLE public.a14_mesh_chunks TO test2;
-GRANT SELECT ON TABLE public.a14_mesh_chunks TO bob;
-GRANT SELECT ON TABLE public.a14_mesh_chunks TO fred;
-
-
-
 update public."A14_mesh_chunks" set existence = '{[2021-01-01,]}'
 update public."A14_las_chunks" set existence = '{[2021-01-01,]}'
 update public."A14_laso_chunks" set existence = '{[2021-01-01,]}'
