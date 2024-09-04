@@ -73,9 +73,9 @@ def run_blender( workdir ):
     # call blender to run the meshing script from its directory
     workdir = Path(workdir)
     print("running blender...")
-    # ~/lib/blender/blender  -b las_to_mesh.blend --python las_to_mesh.py -- --cycles-device OPTIX --root="/home/twak/Downloads" --name="598550.0_262380.0"
+    # ~/lib/blender/blender  -b pts_to_mesh.blend --python blender_pts_to_mesh.py -- --cycles-device OPTIX --root="/home/twak/Downloads" --name="598550.0_262380.0"
     out = subprocess.run(f'cd {Path(__file__).parent.parent.joinpath("blender")} &&'
-                   f'/home/twak/lib/blender/blender -b las_to_mesh.blend --python las_to_mesh.py -- '
+                   f'/home/twak/lib/blender/blender -b pts_to_mesh.blend --python blender_pts_to_mesh.py -- '
                    f'--cycles-device OPTIX --root="{workdir.parent}" --name="{workdir.name}"',
                    shell=True, executable='/bin/bash')
 

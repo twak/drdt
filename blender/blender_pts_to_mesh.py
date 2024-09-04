@@ -9,7 +9,7 @@ Run this script from the command line with the following arguments:
 
 root and name describe the location of the las chunks, and the folder containing the las chunks that we will work on.
 
-~/lib/blender-4.2.0-linux-x64/blender -b las_to_mesh.blend --python las_to_mesh.py -- --cycles-device OPTIX --root="/home/twak/Downloads" --name="598550.0_262380.0"
+~/lib/blender-4.2.0-linux-x64/blender -b pts_to_mesh.blend --python blender_pts_to_mesh.py -- --cycles-device OPTIX --root="/home/twak/Downloads" --name="598550.0_262380.0"
 
 """
 
