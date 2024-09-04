@@ -144,7 +144,12 @@ def find_laso():
 def find_mesh():
     return find_mesh_x("a14_mesh_chunks")
 
-@app.route("/v0/find-defect")
+
+"""
+    similar to find_mesh, but for defects. 
+    meshes are in : /citnas/08. Researchers/tom/a14/mesh_defects
+"""
+@app.route("/v0/find-defect-meshes")
 def find_defect():
     return find_mesh_x("a14_defects_cam")
 
