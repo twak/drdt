@@ -50,8 +50,9 @@ def index():
             url = flask.url_for(rule.endpoint, **(rule.defaults or {}))
 
             methods = list ( rule.methods )
-            methods.remove("OPTIONS")
-            methods.remove("HEAD")
+            for m in ["OPTIONS", "HEAD"]:
+                if m in methods:
+                    methods.remove(m)
 
             links.append(f"<a href='{url}'>{rule.endpoint}</a>: {', '.join(methods)}")
             # links.append((url, rule.endpoint))
