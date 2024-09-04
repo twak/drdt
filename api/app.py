@@ -142,7 +142,13 @@ def find_laso():
 
 @app.route("/v0/find-mesh")
 def find_mesh():
+    return find_mesh_x("a14_mesh_chunks")
 
+@app.route("/v0/find-defect")
+def find_defect():
+    return find_mesh_x("a14_defects_cam")
+
+def find_mesh_x(table):
     vals = get_nsew()
 
     if isinstance(vals, str):
@@ -153,16 +159,16 @@ def find_mesh():
         pg.cur.execute(
             f"""
                 SELECT  name, files, ST_AsText(origin)
-                FROM "a14_mesh_chunks"
+                FROM public."{table}"
                 WHERE ST_Intersects
                 ( geom, {envelope(vals)} )
                 """)
 
-        # print("las chunks I found:")
         out = []
         for x in pg.cur.fetchall():
+            if x[0] is None:
+                continue # not all potholes have meshes
             pt = shapely.from_wkt(x[2])
-            # print(f" name: {x[0]} files: {x[1]}")
             out.append((x[0], pt.x, pt.y, x[1]))
 
         return json.dumps(out)
