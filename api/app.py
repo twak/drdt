@@ -140,19 +140,6 @@ def find_laso():
     with offset 598260.0, 262620.0
 """
 
-@app.route("/v0/find-mesh")
-def find_mesh():
-    return find_mesh_x("a14_mesh_chunks")
-
-
-"""
-    similar to find_mesh, but for defects. 
-    meshes are in : /citnas/08. Researchers/tom/a14/mesh_defects
-"""
-@app.route("/v0/find-defect-meshes")
-def find_defect():
-    return find_mesh_x("a14_defects_cam")
-
 def find_mesh_x(table):
     vals = get_nsew()
 
@@ -179,6 +166,19 @@ def find_mesh_x(table):
         return json.dumps(out)
 
     return "failed to connect to database", 500
+
+@app.route("/v0/find-mesh")
+def find_mesh():
+    return find_mesh_x("a14_mesh_chunks")
+
+
+"""
+    similar to find_mesh, but for defects. 
+    meshes are in : /citnas/08. Researchers/tom/a14/mesh_defects
+"""
+@app.route("/v0/find-defect-meshes")
+def find_defect():
+    return find_mesh_x("a14_defects_cam")
 
 """
     returns a section of the orthomosaic at resolution width x height for given 27700 area
