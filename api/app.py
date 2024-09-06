@@ -6,8 +6,7 @@ import json
 from pathlib import Path
 import flask_login
 from . import utils, scenarios
-
-
+from datetime import datetime, timezone
 
 app = Flask(__name__)
 app.secret_key = Path('api/flask_secret_key').read_text()
@@ -72,33 +71,59 @@ def index():
 def envelope(vals):
     return (f"ST_MakeEnvelope({vals['w']}, {vals['s']}, {vals['e']}, {vals['n']}, 27700 )::geometry('POLYGON')")
 
-"""
-    returns a list of nas-las files which can be found on the nas in the folder:
-        /08. Researchers/tom/a14/las_chunks
-
-    for example, with the coords (epsg:27700)
-    
-    /v0/find-las?w=601158.9&n=261757.9&e=601205.6&s=261660.2
-    
-    similarly for /v0/find-laso, except the reply include the x and y offset in 27700
-
-"""
 def find_lasx(table, with_origin=False):
 
-    vals = get_nsew()
+    #&time=2020-01-01
 
+    vals = get_nsew()
     if isinstance(vals, str):
         return vals, 500
 
+    now_utc = datetime.now(timezone.utc) # all is UTC and 27700
+    time_now = request.args.get('time', now_utc.strftime('%Y-%m-%d %H:%M:%S'))
+
+
+
     with utils.Postgres() as pg:
 
-        pg.cur.execute(
-            f"""
-                SELECT  name, ST_AsText(origin)
+        api_key = request.args.get('api_key', None)
+
+        query = f"""
+                SELECT  name, ST_AsText(origin), existence
                 FROM public."{table}"
                 WHERE ST_Intersects
-                ( geom, {envelope(vals)} )
-                """)
+                ( geom, {envelope(vals)} ) AND 
+                existence @> '{time_now}'::timestamp
+                """
+
+        if api_key is not None:
+
+            user = request_loader(request)
+            if user is None:
+                return f"bad key", 403
+
+            pg.cur.execute(f"SELECT scenario FROM public.scenarios WHERE api_key = '{api_key}' AND human_name='{user.id}'")
+            row = pg.cur.fetchone()
+            if row:
+                scenario_name = row[0]
+                scenario_table = f"{user.id}_{scenario_name}_{table}"
+                pg.cur.execute(f"SELECT * FROM public.scenario_tables WHERE api_key = '{api_key}' AND human_name='{user.id}' AND table_name='{scenario_table}'")
+                row = pg.cur.fetchone()
+                if not row:
+                    return f"missing table {scenario_table}", 404
+                else:
+                    # todo find rows with same primary key in area and intersect times/existence
+                    query += f""" UNION
+                        SELECT  name, ST_AsText(origin), existence
+                        FROM scenario."{scenario_table}"
+                        WHERE ST_Intersects
+                        ( geom, {envelope(vals)} ) AND 
+                        existence @> '{time_now}'::timestamp
+                    """
+            else:
+                return f"bad key", 403
+        
+        pg.cur.execute(f"{query};")
 
         out = []
 
@@ -113,9 +138,24 @@ def find_lasx(table, with_origin=False):
 
     return "failed to connect to database", 500
 
+
+"""
+    returns a list of nas-las files which can be found on the nas in the folder:
+        /08. Researchers/tom/a14/las_chunks
+
+    for example, with the coords (epsg:27700)
+
+    /v0/find-las?w=601158.9&n=261757.9&e=601205.6&s=261660.2
+
+"""
 @app.route("/v0/find-las")
 def find_las():
     return find_lasx("a14_las_chunks")
+
+"""
+    similarly for /v0/find-las, except the reply includes the x and y offset in 27700
+    also 50m lower, and each point cloud is at the origin
+"""
 
 @app.route("/v0/find-laso")
 def find_laso():

@@ -35,17 +35,20 @@ def request_loader(request):
         return
 
     with utils.Postgres() as pg:
-        if pg.cur.execute( f"SELECT * FROM public.scenarios WHERE api_key = '{api_key}';" ):
-            row = pg.cur.fetchone()
+        pg.cur.execute( f"SELECT human_name, scenario FROM public.scenarios WHERE api_key = '{api_key}';" )
+        row = pg.cur.fetchone()
+        if row:
             user = User()
-            user.id = row["human"]
-            user.scenario = row["scenario"]
+            user.id = row[0]
+            user.scenario = row[1]
 
-            pg.cur.execute( f"SELECT * FROM public.humans WHERE human_name = '{user.id}';" )
+            pg.cur.execute( f"SELECT postgres FROM public.humans WHERE human_name = '{user.id}';" )
             row = pg.cur.fetchone()
-            user.postgres =  row["postgres"]
-
+            if row:
+                user.postgres =  row[0]
             return user
+
+    return None
 
 
 def all_base_dbs_it():
