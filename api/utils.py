@@ -1,16 +1,25 @@
 import json
 import psycopg2
+import math
+import laspy
+from flask import request
+from . import scenarios
 
 domain = "http://dt.twak.org:5000"
 sevenseven = 27700
 cur, con = None, None
 
-las_route = "/08. Researchers/tom/a14/las_chunks"
-laso_route = "/08. Researchers/tom/a14/laso_chunks"
-mesh_route = "/08. Researchers/tom/a14/mesh_chunks"
-defect_route = "/08. Researchers/tom/a14/mesh_defects"
-nas_mount = f"/home/twak/citnas"
-nas_mount_w = f"/home/twak/citnas2"
+a14_root = "/08. Researchers/tom/a14/"
+
+las_route = f"{a14_root}las_chunks"
+laso_route = f"{a14_root}laso_chunks"
+mesh_route = f"{a14_root}mesh_chunks"
+defect_route = f"{a14_root}mesh_defects"
+gpr_route = f"{a14_root}gpr_chunks"
+gpr_defect_route = f"{a14_root}gpr_defect_chunks"
+nas_mount = f"/home/twak/citnas" # read only
+nas_mount_w = f"/home/twak/citnas" # write
+
 api_url = "http://dt.twak.org:5000/"
 geoserver_url = "http://dt.twak.org:8080/"
 
@@ -62,3 +71,66 @@ def ro_create_postgres_connection():
     con = psycopg2.connect(dbname=pwp['dbname'], user=pwp['user'], password=pwp['password'], host=pwp['host'])
     cur = con.cursor()
     return curs, con
+
+
+def min_max (lasdata):
+
+    return (lasdata[:,0].min(), lasdata[:,1].min(), lasdata[:,0].max(), lasdata[:,1].max() )
+
+
+def round_down (x):
+    return math.floor(x/10)*10
+
+def offset_las (lasfile, x, y):
+
+    las = laspy.read(lasfile)
+
+    las.header.offset = [x, y, 0]
+
+    with laspy.open(lasfile, mode="w", header=las.header) as writer:
+        writer.write_points(las.points)
+
+
+def build_commond_state():
+    vals = get_nsew()
+
+    if isinstance(vals, str):
+        return vals, 500
+
+    scenario_name = None
+    user = None
+
+    with Postgres() as pg:
+
+        api_key = request.args.get('api_key', None)
+        if api_key is not None:
+
+            user = scenarios.request_loader(request)
+            if user is None:
+                return f"bad key", 403
+
+            pg.cur.execute(
+                f"SELECT scenario FROM public.scenarios WHERE api_key = '{api_key}' AND human_name='{user.id}'")
+            row = pg.cur.fetchone()
+            if row:
+                scenario_name = row[0]
+            else:
+                return f"bad api key", 403
+
+    return vals, scenario_name
+
+
+def get_nsew(other=[],opt={}):
+    vals = {}
+    for x in ['n', 'w', 's', 'e']+other:
+        if not x in request.args:
+            return f"missing parameters {x}"
+        vals[x]= request.args[x]
+
+    for x in opt.keys():
+        if x in request.args:
+            vals[x] = request.args[x]
+        else:
+            vals[x] = opt[x]
+
+    return vals

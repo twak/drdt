@@ -59,12 +59,6 @@ def convex_hull(lasdata, file_name):
 
     return list(map(lambda x: lasdata[x], loop + [loop[0]]))  # map index to coords; last point is first
 
-def min_max (lasdata):
-
-    return (lasdata[:,0].min(), lasdata[:,1].min(), lasdata[:,0].max(), lasdata[:,1].max() )
-
-def round_down (x):
-    return math.floor(x/10)*10
 
 def add_chunks_db(chunk_root, nas_path, use_hull=True):
 
@@ -85,7 +79,7 @@ def add_chunks_db(chunk_root, nas_path, use_hull=True):
 
                 lasdata = fh.read().xyz[:,:2] # 2d hull
 
-                mm = min_max(lasdata)
+                mm = utils.min_max(lasdata)
 
                 if use_hull:
                     boundary = convex_hull (lasdata, file_name)
@@ -100,7 +94,7 @@ def add_chunks_db(chunk_root, nas_path, use_hull=True):
                     continue
 
                 ls = Polygon(boundary)
-                origin = Point(round_down( mm[0] ), round_down( mm[1] ) )
+                origin = Point(utils.round_down( mm[0] ), utils.round_down( mm[1] ) )
 
                 nas_file = f"{nas_path}/{file_name}"
 
