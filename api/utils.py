@@ -2,8 +2,9 @@ import json
 import psycopg2
 import math
 import laspy
+import flask
 from flask import request
-from . import scenarios
+from . import scenarios, app
 
 domain = "http://dt.twak.org:5000"
 sevenseven = 27700
@@ -92,10 +93,11 @@ def offset_las (lasfile, x, y):
 
 
 def build_commond_state():
+
     vals = get_nsew()
 
     if isinstance(vals, str):
-        return vals, 500
+        return vals, None
 
     scenario_name = None
     user = None
@@ -107,7 +109,7 @@ def build_commond_state():
 
             user = scenarios.request_loader(request)
             if user is None:
-                return f"bad key", 403
+                vals = f"bad key"
 
             pg.cur.execute(
                 f"SELECT scenario FROM public.scenarios WHERE api_key = '{api_key}' AND human_name='{user.id}'")
@@ -115,10 +117,13 @@ def build_commond_state():
             if row:
                 scenario_name = row[0]
             else:
-                return f"bad api key", 403
+                vals = f"bad api key"
 
     return vals, scenario_name
 
+
+def envelope(vals):
+    return (f"ST_MakeEnvelope({vals['w']}, {vals['s']}, {vals['e']}, {vals['n']}, 27700 )::geometry('POLYGON')")
 
 def get_nsew(other=[],opt={}):
     vals = {}
@@ -134,3 +139,32 @@ def get_nsew(other=[],opt={}):
             vals[x] = opt[x]
 
     return vals
+
+def list_endpoints():
+    out = ""
+
+    # https://stackoverflow.com/questions/13317536/get-list-of-all-routes-defined-in-the-flask-app
+    def has_no_empty_params(rule):
+        defaults = rule.defaults if rule.defaults is not None else ()
+        arguments = rule.arguments if rule.arguments is not None else ()
+        return len(defaults) >= len(arguments)
+
+    out+="<h4>drdt is serving endpoints:</h4> <ul>"
+
+    for rule in app.app.url_map.iter_rules():
+        # Filter out rules we can't navigate to in a browser
+        # and rules that require parameters
+        if has_no_empty_params(rule):
+            url = flask.url_for(rule.endpoint, **(rule.defaults or {}))
+
+            methods = list ( rule.methods )
+            for m in ["OPTIONS", "HEAD"]:
+                if m in methods:
+                    methods.remove(m)
+
+            out += f"<li><a href='{url}'>{rule.endpoint}</a>: {', '.join(methods)}<br/><pre>{app.app.view_functions[rule.endpoint].__doc__}</pre></li><br>"
+           # links.append((url, rule.endpoint))
+
+    out +=  "</ul>"
+
+    return out

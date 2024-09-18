@@ -141,8 +141,8 @@ def create_user():
 
             pg.con.commit()
 
-            return f"""<p>success:</p><br/>
-            <p>Hi, I have created you an account with usernmae/password {username}/{password} on drdt.</p>
+            return f"""<p>success:</p><br/><br/>
+            <p>Hi, I have created you an account with username/password {username}/{password} on <a href="{utils.domain}">drdt</a>. Ensure you are on the local network.</p>
             <p>You also have postgres account {username}/{db_password}. This gives you read-only access to the base databases.</p>
             <p>You can create scenarios (for writable databases) on <a href="{utils.domain}/list_scenarios">this page</a>.</p>
             """
@@ -245,6 +245,8 @@ def list_scenarios():
                      f"<form action='/show_scenario' method='post'><button type='submit' name='scenario_name' value='{row[0]}'>{row[1]}</button></form>"
                      f"</td></tr>")
         page += "</table></p>"
+
+        page += utils.list_endpoints()
 
         page += "</body></html>"
 
