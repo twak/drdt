@@ -16,7 +16,7 @@ login_manager.init_app(app)
 @app.route('/')
 def index():
     """
-    Index
+        Index
     """
     if flask_login.current_user.is_authenticated:
         return flask.redirect(flask.url_for('list_scenarios'))
@@ -80,7 +80,36 @@ def find_laso():
 
     return json.dumps(out)
 
+@app.route("/v0/find-gpr")
+def find_gpr():
+    """
+        returns a list of nas-las files and offset which can be found on the nas in the folder:
+            /08. Researchers/tom/a14/gpr_chunks
 
+        for example, with the coords (epsg:27700)
+        /v0/find-gpr?w=601158.9&n=261757.9&e=601205.6&s=261660.2
+
+        it might return
+
+        [["w_601200.0_261730.0.las", 601200.0, 261730.0], ... ]
+
+        where w_601200.0_261730.0.las is the file to be displayed at the offset 601200.0, 261730.0
+
+    """
+    vals, scenario_name = utils.build_commond_state()
+
+    with utils.Postgres() as pg:
+        results = time_and_scenario_query("a14_gpr_chunks", location=vals, scenario=scenario_name, cols=['origin'], pg=pg)
+
+    if isinstance(results, str):
+        return results, 500
+
+    out = []
+    for x in results:
+        pt = x['origin']
+        out.append([x['name'], pt.x, pt.y])
+
+    return json.dumps(out)
 
 @app.route("/v0/find-mesh")
 def find_mesh():
@@ -205,11 +234,16 @@ def request_loader(request):
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    """
+        flask user login
+    """
     return scenarios.login()
 
 @app.route('/logout')
 def logout():
-    """Flask user logout"""
+    """
+        flask user logout
+    """
     flask_login.logout_user()
     return 'Logged out'
 
@@ -217,7 +251,7 @@ def logout():
 @flask_login.login_required
 def list_scenarios():
     """
-    Displays a list of scenarios for logged in users.
+        Displays a list of scenarios for logged in users.
     """
     return scenarios.list_scenarios() # 'Logged in as: ' + flask_login.current_user.id
 
