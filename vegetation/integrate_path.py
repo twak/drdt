@@ -13,6 +13,14 @@ import laspy
 import matplotlib.pyplot as plt
 from PIL import Image
 
+"""
+Given a linestring ( a road segment ) we, for each line therin, and compute a wedge shape around it. 
+We then download all las files within that wedge, orient them along the line, and add them to a density image.
+
+The output for the road segment is then a vegetation density pointcloud.
+"""
+
+
 def add_to_result(result, array):
 
     resolution = 10
@@ -21,12 +29,14 @@ def add_to_result(result, array):
     height = result.shape[0]
     mid = width // 2
 
-    array[1] = ( array[1] * resolution ) + mid # x
-    array[0] = ( ( array[0] - 55 ) * resolution ) # z
+    vertical_offset = np.percentile ( array[0], 10 ) # we don't have road height, so adjust "dynamically"
+
+    array[1] = ( array[1] * resolution ) + mid # x move to the middle of the image
+    array[0] = ( ( array[0] - vertical_offset ) * resolution ) + height//10 # z move a little off the bottom of the image
     array = array.astype(int)
 
-    array[0].clip(0, height)
-    array[1].clip(0, width)
+    array[0] = array[0].clip(0, height-1)
+    array[1] = array[1].clip(0, width-1)
 
     for z, x in zip(array[0], array[1]):
         result[height-1-z, x] += 1
@@ -152,15 +162,14 @@ def integrate_path(seg_name):
                 name = seg_name+str(i)
 
                 start =  np.array(linestring.coords[i])
-
-                to_origin = np.array ([
-                          [1, 0, 0, -start[0]],
-                          [0, 1, 0, -start[1]],
-                          [0, 0, 1, 0 ],
-                          [0, 0, 0, 1]] )
-
-
                 end =  np.array(linestring.coords[i+1])
+                mid = (start + end) / 2
+
+                to_origin = np.array([
+                    [1, 0, 0, -mid[0]],
+                    [0, 1, 0, -mid[1]],
+                    [0, 0, 1, 0],
+                    [0, 0, 0, 1]])
 
                 perp_start = perp_vector_triple(linestring.coords, i) * extent
                 perp_end = perp_vector_triple(linestring.coords, i+1) * extent
@@ -215,13 +224,13 @@ def integrate_path(seg_name):
                     # render( os.path.join(workdir, f"out_{i}.png"), np.stack ( [ lasdata [:,2] , lasdata [:,0]] ) )
                     add_to_result (result,np.stack ( [ lasdata [:,2] , lasdata [:,0]] ) )
 
-                if i == 1:
-                    break
+                cutoff = np.percentile(result, 95)
+                r = 255 - (result * 255 / cutoff).clip(0, 255)
+                im = Image.fromarray(r.astype(np.uint8))
+                im.save( os.path.join(workdir, f"out{i}.png") )
 
-            cutoff = np.percentile(result, 95)
-            r = 255 - (result * 255 / cutoff).clip(0, 255)
-            im = Image.fromarray(r.astype(np.uint8))
-            im.save( os.path.join(workdir, f"out.png") )
+                if i == 2:
+                    break
 
                 # return
 

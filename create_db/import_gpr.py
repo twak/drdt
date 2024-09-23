@@ -129,21 +129,16 @@ def chunk0():
 
             # # run pdal, merge and filter point clouds
             if merge_and_filter_pts (workdir, origin.x, origin.y, chunk_name):
-            #
-            #     shutil.copyfile( os.path.join(workdir, chunk_file), os.path.join(lasos, chunk_file ) )
-            #
 
-            #
                 print("inserting into db...")
                 c2.execute(
                     f'INSERT INTO {table_name}(geom, name, nas, origin, existence) '
                     'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(name)s, %(nas)s, ST_SetSRID(%(origin)s::geometry, %(srid)s), %(existence)s )',
                     {'geom': ls.wkb_hex, 'srid': 27700, 'name': chunk_file, 'nas': f"{utils.laso_route}/{chunk_file}", 'origin': origin.wkb_hex, 'existence': utils.before_time_range })
-            #
                 pg.con.commit()
             else:
                 print(f"something went wrong merging point clouds for {chunk_name}")
-            #
+
             shutil.rmtree(workdir)
 
 
