@@ -6,7 +6,6 @@ import flask_login
 from . import utils, scenarios, defects
 from shapely import wkb
 
-
 from .time_and_space import time_and_scenario_query, find_mesh_x
 
 app = Flask(__name__)

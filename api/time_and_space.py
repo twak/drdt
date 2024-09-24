@@ -6,7 +6,7 @@ import flask_login
 import shapely
 from flask import request
 
-from api import utils
+from . import utils
 
 
 def time_and_scenario_query (table, location = None, scenario = None, cols = [], pg=None, name = "name"):
