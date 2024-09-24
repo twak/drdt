@@ -3,7 +3,9 @@ from flask import Flask, redirect
 import json
 from pathlib import Path
 import flask_login
-from . import utils, scenarios
+from . import utils, scenarios, defects
+from shapely import wkb
+
 
 from .time_and_space import time_and_scenario_query, find_mesh_x
 
@@ -198,7 +200,6 @@ def find_pavement():
 
 
 
-
 @app.route("/v0/aerial")
 def find_aerial():
     """
@@ -219,6 +220,25 @@ def find_aerial():
                         f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_aerial&exceptions=application%2Fvnd.ogc.se_inimage&"
                         f"SRS=EPSG%3A27700&WIDTH={int(width)}&HEIGHT={int(height)}"
                         f"&BBOX={vals['w']}%2C{vals['s']}%2C{vals['e']}%2C{vals['n']}", code=302)
+
+
+@app.route("/v0/request_site")
+def request_site():
+    """
+        The AMP uses this to request the next site to visit. This method is a placeholder and does not yet use scenarios.
+
+        Returns id, type, area (m2), and wkt in 27700 of the largest crack in the database.
+
+        e.g. [228, "crack_longitudinal", 4.236841869066629, "MULTIPOLYGON ..."]
+    """
+    return defects.request_site()
+
+@app.route("/v0/show_cracks")
+def show_cracks():
+    """
+        html formatted list of all cracks in the dataset by area.
+    """
+    return defects.show_cracks()
 
 
 # **************************************** login & scenarios ****************************************
@@ -314,3 +334,4 @@ def delete_table():
         removes a table to a scenario. Interface with this via the web interface.
     """
     return scenarios.delete_table()
+
