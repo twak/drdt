@@ -7,7 +7,8 @@ from flask import request
 from . import scenarios, app
 
 domain = "http://dt.twak.org:5000"
-sevenseven = 27700
+sevenseven = 27700 # bng crs
+sevenfour = 7405 # bng + height crs
 cur, con = None, None
 
 a14_root = "/08. Researchers/tom/a14/"
