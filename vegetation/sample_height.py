@@ -11,7 +11,7 @@ import math
 import sys
 
 """
-We have a bunch of data that doesn't have heights in the database.
+We have a bunch of shape/polyline that doesn't have heights in the database.
 
 This script is a first attempt to identify the height from LiDAR data.
 
@@ -29,7 +29,7 @@ def integrate_path():
         pg.cur.execute(f"""
             SELECT  id, ST_AsText(geom), 'Section_La', 'Section_St', 'Section_En', 'Length', 'Start_Date', 'End_Date', 'Section_Fu', 'Road_Numbe', 'Road_Name', 'Road_Class', 'Single_or_'               
             FROM public.a14_segments
-            WHERE id = '11' 
+            WHERE id != '11' 
             """ )
 
         for results in pg.cur.fetchall():

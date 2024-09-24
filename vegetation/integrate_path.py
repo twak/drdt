@@ -29,7 +29,8 @@ def add_to_result(result, array):
     height = result.shape[0]
     mid = width // 2
 
-    vertical_offset = np.percentile ( array[0], 10 ) # we don't have road height, so adjust "dynamically"
+    # vertical_offset = np.percentile ( array[0], 10 ) # we don't have road height, so adjust "dynamically"
+    vertical_offset = 0
 
     array[1] = ( array[1] * resolution ) + mid # x move to the middle of the image
     array[0] = ( ( array[0] - vertical_offset ) * resolution ) + height//10 # z move a little off the bottom of the image
@@ -138,31 +139,45 @@ def integrate_path(seg_name):
 
     print("Integrating path: ", seg_name)
 
-    workdir = Path("/home/twak/Downloads/geojsons")
+    # workdir = Path("/home/twak/Downloads/geojsons")
+    workdir = Path("/home/twak/Downloads/las_cache")
 
     # the output image. we add to it for each segment of the line (and wedge to lidar)
     result = np.zeros((200, 1000))
 
     with Postgres() as pg:
         pg.cur.execute(f"""
-            SELECT  id, ST_AsText(geom), 'Section_La', 'Section_St', 'Section_En', 'Length', 'Start_Date', 'End_Date', 'Section_Fu', 'Road_Numbe', 'Road_Name', 'Road_Class', 'Single_or_'               
+            SELECT  id, ST_AsText(geom), geom_z,  'Section_La', 'Section_St', 'Section_En', 'Length', 'Start_Date', 'End_Date', 'Section_Fu', 'Road_Numbe', 'Road_Name', 'Road_Class', 'Single_or_'               
             FROM public.a14_segments WHERE id = '{seg_name}' 
             """ )
 
         results = pg.cur.fetchone()
+        if results[2] == None:
+            print("No height info for this segment! run sample_height...")
+            return
         path = shapely.from_wkt(results[1])
+        path_z = shapely.from_wkb(results[2])
+
+
+
         print(path)
 
-        for linestring in path.geoms:
+        for lsi, linestring in enumerate(path.geoms):
 
             extent = 100 # how far does the wedge extend from the segment
-            # for each line segment, create an envelope
+
+            # for each line segment, create an envelope. we expect a single linestring per geometry.
             for i in range (len(linestring.coords)-1):
+
+                print (f"processing segment {i} of {len(linestring.coords)-1}")
 
                 name = seg_name+str(i)
 
                 start =  np.array(linestring.coords[i])
                 end =  np.array(linestring.coords[i+1])
+                sh = path_z.coords[i][2]
+                eh = path_z.coords[i+1][2]
+
                 mid = (start + end) / 2
 
                 to_origin = np.array([
@@ -197,10 +212,10 @@ def integrate_path(seg_name):
                     lases = []
 
                     for y in pg2.cur.fetchall():
-                        print(f" >>>> downloading {y[1]}...")
                         dest = os.path.join(workdir, y[1])
                         lases.append(y[1])
                         if not os.path.exists(dest):
+                            print(f" >>>> downloading {y[1]}...")
                             shutil.copy ( os.path.join(utils.nas_mount + utils.las_route, y[1]), dest )
 
                     v1 = [*norm ( end - start ), 0]
@@ -222,15 +237,20 @@ def integrate_path(seg_name):
                 with laspy.open(os.path.join(workdir, f"out.las")) as fh:
                     lasdata = fh.read().xyz
                     # render( os.path.join(workdir, f"out_{i}.png"), np.stack ( [ lasdata [:,2] , lasdata [:,0]] ) )
+
+                    length = np.linalg.norm(end - start)
+
+                    lasdata[:,2] -= sh + (eh - sh) * (lasdata[:,1] + length/2) / length # linear interpolatation for height
+
                     add_to_result (result,np.stack ( [ lasdata [:,2] , lasdata [:,0]] ) )
 
                 cutoff = np.percentile(result, 95)
                 r = 255 - (result * 255 / cutoff).clip(0, 255)
                 im = Image.fromarray(r.astype(np.uint8))
-                im.save( os.path.join(workdir, f"out{i}.png") )
+                im.save( os.path.join("/home/twak/Downloads", f"out{i}.png") )
 
-                if i == 2:
-                    break
+                # if i == 2:
+                #     break
 
                 # return
 
