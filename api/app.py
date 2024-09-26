@@ -224,7 +224,7 @@ def find_aerial():
 @app.route("/v0/request_site")
 def request_site():
     """
-        The AMP uses this to request the next site to visit. This method is a placeholder and does not yet use scenarios.
+        The AMP uses this to request the next site to visit. This method is a demo and does not yet use scenarios.
 
         Returns id, type, area (m2), and wkt in 27700 of the largest crack in the database.
 

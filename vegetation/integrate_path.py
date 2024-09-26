@@ -12,6 +12,7 @@ import subprocess
 import laspy
 import matplotlib.pyplot as plt
 from PIL import Image
+from shapely import wkb, wkt
 
 """
 Given a linestring ( a road segment ) we, for each line therin, and compute a wedge shape around it. 
@@ -22,6 +23,8 @@ The output for the road segment is then a vegetation density pointcloud.
 
 
 def add_to_result(result, array):
+
+    # use histogram2d!
 
     resolution = 10
 
@@ -67,7 +70,7 @@ def render (path, array):
 
     im.save(path)
 
-def do_pdal(name, las_files, start, end, ls, transform, workdir):
+def do_pdal(name, las_files, workdir):
 
     with open(os.path.join ( workdir, f"go.json"), "w") as fp:
 
@@ -75,32 +78,13 @@ def do_pdal(name, las_files, start, end, ls, transform, workdir):
         for f in las_files:
             fp.write(  f'"{f}", \n')
 
-        clst = []
-        for c in [3, 4, 5]: # vegetation
-            clst .append( f"Classification[{c}:{c}]" )
-
-        clst = ", ".join(clst)
-
         fp.write(f'''
                 {{
                     "type": "filters.merge"
                 }},
                 {{
-                    "type":"filters.range",
-                    "limits":"{clst}"
-                }},
-                {{
-                    "type":"filters.crop",
-                    "polygon":"{ls.wkt}"
-                }},
-                {{
-                    "type":"filters.transformation",
-                    "matrix":"{transform}"
-                }},
-
-                {{
                     "type": "writers.las",
-                    "filename": "out.las"
+                    "filename": "{name}.las"
                 }}
                 ]
                 ''')
@@ -144,8 +128,24 @@ def integrate_path(seg_name):
 
     # the output image. we add to it for each segment of the line (and wedge to lidar)
     result = np.zeros((200, 1000))
+    result2 = np.zeros((200, 1000))
 
-    with Postgres() as pg:
+    with Postgres(pass_file="pwd_rw.json") as pg:
+        pg.cur.execute(f'DROP TABLE IF EXISTS public.a14_pruned_las_chunks')
+        pg.cur.execute("""
+        CREATE TABLE IF NOT EXISTS public.a14_pruned_las_chunks
+        (
+            geom geometry,
+            type text COLLATE pg_catalog."default",
+            name text COLLATE pg_catalog."default" NOT NULL,
+            nas text COLLATE pg_catalog."default",
+            origin geometry(Point,27700),
+            existence tsmultirange,
+            CONSTRAINT a14_pruned_las_chunks_pkey PRIMARY KEY (name)
+        )
+        """)
+
+    with (Postgres() as pg):
         pg.cur.execute(f"""
             SELECT  id, ST_AsText(geom), geom_z,  'Section_La', 'Section_St', 'Section_En', 'Length', 'Start_Date', 'End_Date', 'Section_Fu', 'Road_Numbe', 'Road_Name', 'Road_Class', 'Single_or_'               
             FROM public.a14_segments WHERE id = '{seg_name}' 
@@ -158,8 +158,6 @@ def integrate_path(seg_name):
         path = shapely.from_wkt(results[1])
         path_z = shapely.from_wkb(results[2])
 
-
-
         print(path)
 
         for lsi, linestring in enumerate(path.geoms):
@@ -171,6 +169,7 @@ def integrate_path(seg_name):
 
                 print (f"processing segment {i} of {len(linestring.coords)-1}")
 
+
                 name = seg_name+str(i)
 
                 start =  np.array(linestring.coords[i])
@@ -179,12 +178,6 @@ def integrate_path(seg_name):
                 eh = path_z.coords[i+1][2]
 
                 mid = (start + end) / 2
-
-                to_origin = np.array([
-                    [1, 0, 0, -mid[0]],
-                    [0, 1, 0, -mid[1]],
-                    [0, 0, 1, 0],
-                    [0, 0, 0, 1]])
 
                 perp_start = perp_vector_triple(linestring.coords, i) * extent
                 perp_end = perp_vector_triple(linestring.coords, i+1) * extent
@@ -196,14 +189,16 @@ def integrate_path(seg_name):
 
                 boundary = [ a, b, c ,d ]
                 ls = Polygon(boundary)
-                # filepath = Path(f"/home/twak/Downloads/geojsons/path_{i}.geojson")
 
-                print (ls)
+                lases_with_classification = []
+
+                print (f"now processing wedge {ls}")
 
                 with Postgres() as pg2:
+
                     pg2.cur.execute(
                         f"""
-                        SELECT type, name
+                        SELECT type, name, geom, origin
                         FROM public.a14_las_chunks
                         WHERE ST_DWithin(geom, ST_SetSRID( '{ls.wkb_hex}'::geometry, {utils.sevenseven} ) , 10)
                         """
@@ -211,14 +206,7 @@ def integrate_path(seg_name):
 
                     lases = []
 
-                    for y in pg2.cur.fetchall():
-                        dest = os.path.join(workdir, y[1])
-                        lases.append(y[1])
-                        if not os.path.exists(dest):
-                            print(f" >>>> downloading {y[1]}...")
-                            shutil.copy ( os.path.join(utils.nas_mount + utils.las_route, y[1]), dest )
-
-                    v1 = [*norm ( end - start ), 0]
+                    v1 = np.array ( [*norm ( end - start ), 0])
                     v2 = [*perp_vector(start, end), 0]
                     v3 = np.array([0, 0, 1])
 
@@ -228,28 +216,108 @@ def integrate_path(seg_name):
                                        [v2[2], v1[2], v3[2], 0],
                                        [0, 0, 0, 1]])
 
-                    # and move to origin
-                    t = np.matmul(rotate, to_origin)
-
-                    # fixme: this is very low resolution - we should transform the las files to the origin with utils.offset_las()
-                    do_pdal ( name, lases, start, end, ls, " ".join ( list ( map (str, t.flatten()) ) ), workdir )
-
-                with laspy.open(os.path.join(workdir, f"out.las")) as fh:
-                    lasdata = fh.read().xyz
-                    # render( os.path.join(workdir, f"out_{i}.png"), np.stack ( [ lasdata [:,2] , lasdata [:,0]] ) )
-
                     length = np.linalg.norm(end - start)
 
-                    lasdata[:,2] -= sh + (eh - sh) * (lasdata[:,1] + length/2) / length # linear interpolatation for height
+                    for b in pg2.cur.fetchall():
 
-                    add_to_result (result,np.stack ( [ lasdata [:,2] , lasdata [:,0]] ) )
+                        chunk_name = b[1]
+                        chunk_geom = shapely.wkb.loads(b[2], hex=True)
+                        chunk_origin = shapely.wkb.loads(b[3], hex=True)
 
-                cutoff = np.percentile(result, 95)
-                r = 255 - (result * 255 / cutoff).clip(0, 255)
-                im = Image.fromarray(r.astype(np.uint8))
-                im.save( os.path.join("/home/twak/Downloads", f"out{i}.png") )
+                        print("processing las chunk", chunk_name)
+                        dest = os.path.join(workdir, chunk_name)
 
-                # if i == 2:
+                        if not os.path.exists(dest):
+                            print(f"  downloading {b[1]}...")
+                            shutil.copy ( os.path.join(utils.nas_mount + utils.las_route, b[1]), dest )
+
+                        with laspy.open(dest) as fh:
+                            lasdata = fh.read()
+
+                            xyz = np.stack((
+                               lasdata.X * lasdata.header.x_scale - mid[0], # move x, y to origin
+                               lasdata.Y * lasdata.header.y_scale - mid[1],
+                               lasdata.Z * lasdata.header.z_scale, # height is moved to origin below
+                               np.zeros((lasdata.xyz.shape[0]) ), # we'll use this as padding for 4x4 rotation
+                               lasdata.classification.array, # we'll use this for filtering out vegetation
+                               np.arange(lasdata.xyz.shape[0]) # index
+                            ), axis=1 )
+
+                            # filter out points outside the wedge before any other transforms
+                            l2 = length/2
+                            for plane in [ [ *v1, l2], [*(-v1), l2 ] ]:
+                                xyz = xyz[ (xyz[:, 0] * plane[0] + xyz[:, 1] * plane[1] + xyz[:, 2] * plane[2] + plane[3]) > 0 ]
+
+                            xyz[:, :4] = np.matmul(xyz[:, :4], rotate) # rotation
+                            xyz[:, 2] -= sh + (eh - sh) * ( xyz[:, 1] + length / 2) / length  # linearlly interpolate height of the length of the segment (shear transform)
+
+                            segment_to_road_edge = 2 # vegetation cut shape...
+                            slope = 0.5
+                            pruned_filename = f"pruned_{chunk_name}_chunks_{seg_name}_{i}"
+
+                            if False: # create pruned las chunks
+                                # a cloud without the pruned vegetation
+                                pruned = xyz[ ( (xyz [:, 4] != 3) & (xyz[:, 4] != 4) & (xyz[:, 4] != 5) ) | # not vegetation, or
+                                          (  xyz [:, 0] < 0 ) |                                         # before vertical plane in center of road
+                                          ( (xyz [:, 0] - segment_to_road_edge ) > slope * xyz[:, 2] ) ]  # after sloped line at 'edge' of road.
+
+                                # take remaining indicies; apply as filter to original lasdata; write back as new las file
+
+                                with laspy.open(os.path.join( utils.nas_mount_w+utils.a14_root, "vege_pruned_las", f"{pruned_filename}.las"), mode="w", header=lasdata.header) as writer:
+                                    to_keep = pruned[:, 5].astype(int)
+                                    writer.write_points(lasdata.points[to_keep])
+
+                                with Postgres(pass_file="pwd_rw.json") as pg3:
+                                    pg3.cur.execute(
+                                        f'INSERT INTO public.a14_pruned_las_chunks(geom, name, nas, origin, existence) '
+                                        'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(name)s, %(nas)s, ST_SetSRID(%(origin)s::geometry, %(srid)s), %(existence)s )',
+                                        {'geom': chunk_geom.wkb_hex, 'srid': 27700, 'name': pruned_filename,
+                                         'nas': f"{utils.a14_root}vege_pruned_las", 'origin': chunk_origin.wkb_hex,
+                                         'existence': utils.before_time_range})
+
+                            if False: # write point cloud with pruned classification
+                                lases_with_classification.append(f"{pruned_filename}.las")
+                                with laspy.open(os.path.join( "/home/twak/Downloads/cut_as_classification/", f"{pruned_filename}.las"), mode="w", header=lasdata.header) as writer:
+                                    to_keep = xyz[:, 5].astype(int) # remove before start, end.
+
+                                    to_remove = xyz[
+                                        ((xyz[:, 4] == 3) | (xyz[:, 4] == 4) | (xyz[:, 4] == 5)) &
+                                         (xyz[:, 0] > 0) &
+                                        ((xyz[:, 0] - segment_to_road_edge) < slope * xyz[:, 2])]
+
+                                    # for each index still in to_remove, set classification in laspy to 13
+                                    lasdata.classification[to_remove[:, 5].astype(int)] = 13
+                                    writer.write_points(lasdata.points[to_keep])
+
+                            if True: # integrate down whole segment
+                                xyz = xyz[(xyz[:, 4] == 3) | (xyz[:, 4] == 4) | (xyz[:, 4] == 5)]  # vegetation filter
+                                result  += np.histogram2d(xyz[:, 2], xyz[:, 0]          , bins=(200, 1000), range=[[-1, 19], [-50, 50]], density=False)[0]
+                            
+                            if True: # a cloud with only the pruned vegetation
+                                veg_togo = xyz[
+                                              ( xyz [:, 0] > 0 ) & # vertical plane in center of road
+                                              (( xyz [:, 0] - segment_to_road_edge ) < slope * xyz[:, 2] ) ] # sloped line at 'edge' of road.
+                                
+                                result2 += np.histogram2d(veg_togo[:, 2], veg_togo[:, 0], bins=(200, 1000), range=[[-1, 19], [-50, 50]], density=False)[0]
+
+                # fixme: this is very low resolution - we should transform the las files to the origin with utils.offset_las()
+                # do_pdal ( name, lases, start, end, ls, " ".join ( list ( map (str, rotate.flatten()) ) ), workdir )
+                # with laspy.open(os.path.join(workdir, f"out.las")) as fh:
+                #     lasdata = fh.read().xyz
+                #     length = np.linalg.norm(end - start)
+                #     lasdata[:,2] -= sh + (eh - sh) * (lasdata[:,1] + length/2) / length # linear interpolatation for height
+                #     add_to_result (result,np.stack ( [ lasdata [:,2] , lasdata [:,0]] ) )
+
+                for name, array in [("veg", result2), ("out", result)]:
+                    cutoff = np.percentile(array, 99)
+                    r = 255 - (array * 255 / cutoff).clip(0, 255)
+                    r=np.flip ( r, axis=0 ) # upside down
+                    im = Image.fromarray(r.astype(np.uint8))
+                    im.save( os.path.join("/home/twak/Downloads", f"{name}{i}.png") )
+
+                # do_pdal ( f"with_class_{i}", lases_with_classification, "/home/twak/Downloads/cut_as_classification/" )
+
+                # if i == 0:
                 #     break
 
                 # return

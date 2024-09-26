@@ -61,7 +61,7 @@ def time_and_scenario_query (table, location = None, scenario = None, cols = [],
         sn = f"scenario.{user}_{scenario}_{table}"
 
         q = f""" 
-                --- when I wrote the below God and I knew what I was thinking...
+                --- when I wrote the below only God and I knew what I was thinking...
                 SELECT x.{name}, x.existence * y.existence as existence{col_str('x')}
                     FROM {sn} x JOIN {tn} y on y.{name} = x.{name}
                     WHERE x.existence * y.existence @> '{time}'::timestamp {loc_str('x')}

@@ -20,7 +20,7 @@ defect_route = f"{a14_root}mesh_defects"
 gpr_route = f"{a14_root}gpr_chunks"
 gpr_defect_route = f"{a14_root}gpr_defect_chunks"
 nas_mount = f"/home/twak/citnas" # read only
-nas_mount_w = f"/home/twak/citnas" # write
+nas_mount_w = f"/home/twak/citnas2" # write
 
 api_url = "http://dt.twak.org:5000/"
 geoserver_url = "http://dt.twak.org:8080/"
