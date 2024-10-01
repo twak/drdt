@@ -27,10 +27,12 @@ to_prune_horiz_integral = np.zeros((200, 1000))
 integral_vert = None
 path = None # path we're working on
 vi_scale = 1 # scale of the vertical integral image
+vi_pad = 200  # meters expansion beyond path for vertical integral
 lases_with_classification = []
 
 # parameters of cut-profile
-segment_to_road_edge = 2  # vegetation cut shape...
+segment_to_road_edge = 2  # vegetation cut shape... (2 for segment 11; 1.5 for segment 14)
+v_cut_move = 1 # move central trim-plane to the "left" away from the verge by this distance
 slope = 0.5
 
 def render (path, array):
@@ -166,8 +168,7 @@ def process_wedge(eh, start, mid, end, i, ls, sh, seg_name, workdir):
                     xyz = xyz[(xyz[:, 0] * plane[0] + xyz[:, 1] * plane[1] + xyz[:, 2] * plane[2] + plane[3]) > 0]
 
                 xyz[:, :4] = np.matmul(xyz[:, :4], rotate)  # rotation
-                xyz[:, 2] -= sh + (eh - sh) * (xyz[:,
-                                               1] + length / 2) / length  # linearlly interpolate height of the length of the segment (shear transform)
+                xyz[:, 2] -= sh + (eh - sh) * (xyz[:, 1] + length / 2) / length  # linearly interpolate height of the length of the segment (shear transform)
 
                 pruned_filename = f"pruned_{chunk_name}_chunks_{seg_name}_{i}"
 
@@ -189,9 +190,8 @@ def integrate_horiz(xyz, mid):
     veg_horiz_integral += \
         np.histogram2d(xyz[:, 2], xyz[:, 0], bins=(200, 1000), range=[[-1, 19], [-50, 50]], density=False)[0]
 
-
     veg_togo = xyz[
-        (xyz[:, 0] > 0) &  # vertical plane in center of road
+        (xyz[:, 0] + v_cut_move > 0) &  # vertical plane in center of road
         ((xyz[:, 0] - segment_to_road_edge) < slope * xyz[:, 2])]  # sloped line at 'edge' of road.
     to_prune_horiz_integral += \
     np.histogram2d(veg_togo[:, 2], veg_togo[:, 0], bins=(200, 1000), range=[[-1, 19], [-50, 50]], density=False)[0]
@@ -199,14 +199,14 @@ def integrate_horiz(xyz, mid):
 
 def create_pc_with_prune_class(lasdata, pruned_filename, xyz):
     # write point cloud with pruned classification
-    global veg_horiz_integral, to_prune_horiz_integral, lases_with_classification, integral_vert, path
+    global veg_horiz_integral, to_prune_horiz_integral, lases_with_classification, integral_vert, path, vi_pad, v_cut_move
     lases_with_classification.append(f"{pruned_filename}.las")
 
     with laspy.open(os.path.join("/home/twak/Downloads/cut_as_classification/", f"{pruned_filename}.las"), mode="w", header=lasdata.header) as writer:
         to_keep = xyz[:, 5].astype(int)  # remove before start, end.
         to_remove = xyz[
             ((xyz[:, 4] == 3) | (xyz[:, 4] == 4) | (xyz[:, 4] == 5)) &
-             (xyz[:, 0] > 0) &
+             (xyz[:, 0] + v_cut_move> 0) &
             ((xyz[:, 0] - segment_to_road_edge) < slope * xyz[:, 2])]
 
         # for each index still in to_remove, set classification in laspy to 13
@@ -215,16 +215,15 @@ def create_pc_with_prune_class(lasdata, pruned_filename, xyz):
 
         # overhead view of the pruned vegetation
         vert_data = lasdata.xyz[to_remove[:, 5].astype(int)]
-        integral_vert += np.histogram2d( vert_data[:, 0], vert_data[:, 1], bins=(integral_vert.shape[0], integral_vert.shape[1]), range=[[path.bounds[0], path.bounds[2]], [path.bounds[1], path.bounds[3]]], density=False)[0]
+        integral_vert += np.histogram2d( vert_data[:, 0], vert_data[:, 1], bins=(integral_vert.shape[0], integral_vert.shape[1]), range=[[path.bounds[0] - vi_pad, path.bounds[2]+ vi_pad], [path.bounds[1]- vi_pad, path.bounds[3]+ vi_pad]], density=False)[0]
 
 
 def create_pruned_pc(chunk_geom, chunk_origin, lasdata, pruned_filename, xyz):
     # a cloud without the pruned vegetation
-    global veg_horiz_integral, to_prune_horiz_integral
+    global veg_horiz_integral, to_prune_horiz_integral, v_cut_move
     pruned = xyz[((xyz[:, 4] != 3) & (xyz[:, 4] != 4) & (xyz[:, 4] != 5)) |  # not vegetation, or
-                 (xyz[:, 0] < 0) |  # before vertical plane in center of road
-                 ((xyz[:, 0] - segment_to_road_edge) > slope * xyz[:,
-                                                               2])]  # after sloped line at 'edge' of road.
+                  (xyz[:, 0] + v_cut_move < 0) |  # before vertical plane in center of road
+                 ((xyz[:, 0] - segment_to_road_edge) > slope * xyz[:, 2])]  # after sloped line at 'edge' of road.
     # take remaining indicies; apply as filter to original lasdata; write back as new las file
     with laspy.open(os.path.join(utils.nas_mount_w + utils.a14_root, "vege_pruned_las",
                                  f"{pruned_filename}.las"), mode="w", header=lasdata.header) as writer:
@@ -250,6 +249,8 @@ def integrate_path(seg_name):
     global veg_horiz_integral, to_prune_horiz_integral, integral_vert
     # the output image. we add to it for each segment of the line (and wedge to lidar)
 
+    # vertical integral - overlay on OS aerial
+    background_path = os.path.join("/home/twak/Downloads/aerial.png")
 
     with Postgres(pass_file="pwd_rw.json") as pg:
         pg.cur.execute(f'DROP TABLE IF EXISTS public.a14_pruned_las_chunks')
@@ -277,15 +278,21 @@ def integrate_path(seg_name):
             print("No height info for this segment! run sample_height...")
             return
 
-        global integral_vert, vi_scale, path
+        global integral_vert, vi_scale, vi_pad, path
 
         path = shapely.from_wkt(results[1])
         path_z = shapely.from_wkb(results[2])
 
         print(path)
 
+        integral_vert = np.zeros(( int ( (path.bounds[2] - path.bounds[0] + 2*vi_pad ) * vi_scale), int ( ( path.bounds[3] - path.bounds[1] + 2 * vi_pad ) * vi_scale ) ) )
 
-        integral_vert = np.zeros(( int ( (path.bounds[2] - path.bounds[0]) * vi_scale), int ( ( path.bounds[3] - path.bounds[1] ) * vi_scale ) ) )
+        urllib.request.urlretrieve(
+            f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
+            f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_aerial&exceptions=application%2Fvnd.ogc.se_inimage&"
+            f"SRS=EPSG%3A27700&WIDTH={integral_vert.shape[0]}&HEIGHT={integral_vert.shape[1]}"
+            f"&BBOX={path.bounds[0] - vi_pad}%2C{path.bounds[1] - vi_pad}%2C{path.bounds[2] + vi_pad}%2C{path.bounds[3] + vi_pad}",
+            background_path)
 
         for lsi, linestring in enumerate(path.geoms):
 
@@ -312,32 +319,28 @@ def integrate_path(seg_name):
                 b = end + perp_end
                 c = end - perp_end
                 d = start - perp_start
-
                 boundary = [ a, b, c ,d ]
                 ls = Polygon(boundary)
 
-
                 print (f"now processing wedge {ls}")
-
                 process_wedge(eh, start, mid, end, i, ls, sh, seg_name, workdir)
 
+                MAGMA = Image.open( os.path.join (Path(__file__).parent, "magma_orig.png") )
+                MAGMA = np.asarray(MAGMA)
+                MAGMA = MAGMA[:, :, :3]
+
                 # horizontal density integral
-                for name, array in [("veg", to_prune_horiz_integral), ("out", veg_horiz_integral)]:
-                    cutoff = max(1,np.percentile(array, 75))
-                    r = 255 - (array * 255 / cutoff).clip(0, 255)
+                for name, array in [("veg", to_prune_horiz_integral), ("horiz", veg_horiz_integral)]:
+                    cutoff = max(0.01,np.percentile(array, 99.5))
+                    # cutoff = max(0.01, array.max() )
+                    # r = array/cutoff
+
+                    r = MAGMA[1][( np.minimum(MAGMA.shape[1]-1, array * MAGMA.shape[1]/cutoff )).astype(np.int32)]
+
+                    # r = 255 - (array * 255 / cutoff).clip(0, 255)
                     r=np.flip ( r, axis=0 ) # upside down
                     im = Image.fromarray(r.astype(np.uint8))
-                    im.save( os.path.join("/home/twak/Downloads", f"{name}{i}.png") )
-
-                # vertical integral - overlay on OS aerial
-                background_path = os.path.join("/home/twak/Downloads/aerial.png")
-
-                urllib.request.urlretrieve(
-                        f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
-                        f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_aerial&exceptions=application%2Fvnd.ogc.se_inimage&"
-                        f"SRS=EPSG%3A27700&WIDTH={integral_vert.shape[0]}&HEIGHT={integral_vert.shape[1]}"
-                        f"&BBOX={path.bounds[0]}%2C{path.bounds[1]}%2C{path.bounds[2]}%2C{path.bounds[3]}",
-                        background_path)
+                    im.save( os.path.join("/home/twak/Downloads", f"{name}{'{:02d}'.format(i)}.png") )
 
                 cutoff = max ( integral_vert.max() * 0.75, 1)
                 r = 255 - (integral_vert * 255 / cutoff)
@@ -345,15 +348,17 @@ def integrate_path(seg_name):
                 r = np.flip(r, axis=0)  # upside down
                 o = np.zeros((r.shape[0], r.shape[1], 4), dtype=np.uint8)
                 o[:, :, 3] = 255-r # density = transparency
-                o[:, :, 0] = 255 # red please
+                o[:, :, :3] = [255, 120, 255] # purple!
                 im = Image.fromarray(o.clip(0, 255))
 
                 bg = Image.open(background_path).convert("RGBA")
                 bg = ImageEnhance.Brightness(bg).enhance(0.3)
                 bg.paste(im, (0, 0), im)
-                bg.save(os.path.join("/home/twak/Downloads", f"vert{i}.png"))
+                # override alpha
+                bg.putalpha(255)
+                bg.save(os.path.join("/home/twak/Downloads", f"vert{'{:02d}'.format(i)}.png"))
 
 
 if __name__ == '__main__':
-    integrate_path("14")
-    # integrate_path("11")
+    integrate_path("11")
+    # integrate_path("14")
