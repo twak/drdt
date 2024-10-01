@@ -15,7 +15,7 @@ We have a bunch of shape/polyline that doesn't have heights in the database.
 
 This script is a first attempt to identify the height from LiDAR data.
 
-It filters for ground-based points and takes the mean.
+It filters for ground-based points and takes the mean. For points where there is no data, it takes the nearest point.
 
 """
 
@@ -29,7 +29,7 @@ def integrate_path():
         pg.cur.execute(f"""
             SELECT  id, ST_AsText(geom), 'Section_La', 'Section_St', 'Section_En', 'Length', 'Start_Date', 'End_Date', 'Section_Fu', 'Road_Numbe', 'Road_Name', 'Road_Class', 'Single_or_'               
             FROM public.a14_segments
-            WHERE id != '11' 
+            WHERE id != '14' 
             """ )
 
         for results in pg.cur.fetchall():
@@ -52,7 +52,7 @@ def integrate_path():
                     # find las chunks around the point and download
                     print (f"looking for las chunks around {loc} - {i} of {len(linestring.coords)}")
 
-                    if True: # dbg
+                    if True:
                         with Postgres() as pg2:
                             pg2.cur.execute(
                                 f"""
