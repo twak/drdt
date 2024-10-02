@@ -95,7 +95,7 @@ def offset_las (lasfile, x, y):
 
 def build_commond_state():
 
-    scenario_name, vals = get_scenario_name()
+    scenario_name, vals, _ = get_scenario()
 
     if vals is not None: # error
         return vals, scenario_name
@@ -107,10 +107,11 @@ def build_commond_state():
     return vals, scenario_name
 
 
-def get_scenario_name(api_key=None):
+def get_scenario (api_key=None):
 
     vals = None # error message
     scenario_name = None
+    user = None
 
     with Postgres() as pg:
 
@@ -119,19 +120,22 @@ def get_scenario_name(api_key=None):
 
         if api_key is not None:
 
-            user = scenarios.request_loader(request)
-            if user is None:
-                vals = f"bad key"
+            # user = scenarios.request_loader(request)
+            # if user is None:
+            #     vals = f"bad key"
 
             pg.cur.execute(
-                f"SELECT scenario FROM public.scenarios WHERE api_key = '{api_key}' AND human_name='{user.id}'")
+                f"SELECT scenario, human_name FROM public.scenarios WHERE api_key = '{api_key}'") # AND human_name='{user.id}'
+
             row = pg.cur.fetchone()
+
             if row:
                 scenario_name = row[0]
+                user = row[1]
             else:
                 vals = f"bad api key"
 
-    return scenario_name, vals
+    return scenario_name, vals, user
 
 
 def envelope(vals):

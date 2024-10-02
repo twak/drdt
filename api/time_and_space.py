@@ -8,13 +8,11 @@ from flask import request
 
 from . import utils
 
-def time_and_scenario_query_api (table, location = None, cols = [], pg=None, name = "name", time=None, api_key):
-    fixme user is not defined...
-    scenario_name = utils.get_scenario_name(api_key)
-    return time_and_scenario_query(table, location, scenario_name, cols, pg, name, time, user_override=)
+def time_and_scenario_query_api (table, location = None, cols=[], pg=None, name = "name", time=None, api_key="xxx"):
+    scenario_name, _, user = utils.get_scenario(api_key)
+    return time_and_scenario_query(table, location, scenario_name, cols, pg, name, time, user_override=user)
 
-
-def time_and_scenario_query (table, location = None, scenario = None, cols = [], pg=None, name = "name", time=None, user_override=None):
+def time_and_scenario_query (table, location = None, scenario = None, cols=[], pg=None, name = "name", time=None, user_override=None):
 
     if isinstance(location, str):
         return location

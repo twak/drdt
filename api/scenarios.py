@@ -194,7 +194,7 @@ def create_scenario():
 
             scenario_name = flask.request.form['scenario_name']
 
-            pg.cur.execute( f"SELECT * FROM public.scenarios WHERE scenario = '{scenario_name}';" )
+            pg.cur.execute( f"SELECT * FROM public.scenarios WHERE scenario = '{scenario_name}' AND human_name = '{flask_login.current_user.id}';" )
             if pg.cur.fetchone():
                 return f"scenario {scenario_name} already exists"
 

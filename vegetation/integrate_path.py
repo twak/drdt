@@ -117,12 +117,11 @@ def process_wedge(eh, start, mid, end, i, ls, sh, seg_name, workdir):
 
     with Postgres() as pg2:
 
-
         def loc_query(ch):
             return f" AND ST_DWithin({ch}.geom, ST_SetSRID('{ls.wkb_hex}'::geometry, {utils.sevenseven} ), 10)"
 
-        results = time_and_space.time_and_scenario_query("a14_las_chunks", location=loc_query, pg=pg2,
-                            user="bob", scenario="vegetation", cols=["type", "geom", "origin"], time=utils.start_time)
+        results = time_and_space.time_and_scenario_query_api("a14_las_chunks", location=loc_query, pg=pg2,
+                            api_key="f8c82b4e8156eef1c7a2f24dfd46196a", cols=["type", "geom", "origin"], time=utils.start_time)
 
         # pg2.cur.execute(
         #     f"""
@@ -151,6 +150,7 @@ def process_wedge(eh, start, mid, end, i, ls, sh, seg_name, workdir):
             chunk_name = b["name"]
             chunk_geom = b["geom"] # shapely.wkb.loads(b[2], hex=True)
             chunk_origin = b["origin"]
+            chunk_exists = b["existence"]
 
             print("processing las chunk", chunk_name)
             dest = os.path.join(workdir, chunk_name)
@@ -181,13 +181,13 @@ def process_wedge(eh, start, mid, end, i, ls, sh, seg_name, workdir):
 
                 pruned_filename = f"pruned_{chunk_name}_chunks_{seg_name}_{i}"
 
-                if False:  # create pruned las chunks
-                    create_pruned_pc(chunk_geom, chunk_origin, lasdata, pruned_filename, xyz)
+                if True:  # create pruned las chunks
+                    create_pruned_pc(chunk_name, chunk_geom, chunk_origin, chunk_exists, lasdata, pruned_filename, xyz)
 
-                if True:
+                if False:
                     create_pc_with_prune_class(lasdata, pruned_filename, xyz)
 
-                if True:  # integrate down whole segment
+                if False:  # integrate down whole segment
                     integrate_horiz(xyz, mid)
 
 
@@ -227,25 +227,40 @@ def create_pc_with_prune_class(lasdata, pruned_filename, xyz):
         integral_vert += np.histogram2d( vert_data[:, 0], vert_data[:, 1], bins=(integral_vert.shape[0], integral_vert.shape[1]), range=[[path.bounds[0] - vi_pad, path.bounds[2]+ vi_pad], [path.bounds[1]- vi_pad, path.bounds[3]+ vi_pad]], density=False)[0]
 
 
-def create_pruned_pc(chunk_geom, chunk_origin, lasdata, pruned_filename, xyz):
+def create_pruned_pc(chunk_name, chunk_geom, chunk_origin, chunk_exists, lasdata, pruned_filename, xyz, date = "2024-10-02 00:60:00"):
+
     # a cloud without the pruned vegetation
     global veg_horiz_integral, to_prune_horiz_integral, v_cut_move
     pruned = xyz[((xyz[:, 4] != 3) & (xyz[:, 4] != 4) & (xyz[:, 4] != 5)) |  # not vegetation, or
                   (xyz[:, 0] + v_cut_move < 0) |  # before vertical plane in center of road
                  ((xyz[:, 0] - segment_to_road_edge) > slope * xyz[:, 2])]  # after sloped line at 'edge' of road.
+
+    if len (pruned) == len (xyz):
+        print("no vegetation pruned!")
+        return
+
     # take remaining indicies; apply as filter to original lasdata; write back as new las file
     with laspy.open(os.path.join(utils.nas_mount_w + utils.a14_root, "vege_pruned_las",
                                  f"{pruned_filename}.las"), mode="w", header=lasdata.header) as writer:
         to_keep = pruned[:, 5].astype(int)
         writer.write_points(lasdata.points[to_keep])
 
-    with Postgres(pass_file="pwd_rw.json") as pg3:
-        pg3.cur.execute(
-            f'INSERT INTO public.a14_pruned_las_chunks(geom, name, nas, origin, existence) '
+    with Postgres(pass_file="fred.json") as pg:
+
+        orig_nas_path = utils.las_route +"/" + chunk_name
+
+        # remove any existing pruned point cloud - create new entry with existence range setup
+        pg.cur.execute(
+            f"INSERT INTO scenario.fred_vege_a14_las_chunks (geom, type, name, nas, origin, existence) "
+            f"VALUES ('{chunk_geom.wkb_hex}'::geometry, 'point_cloud', '{chunk_name}', '{orig_nas_path}', '{chunk_origin.wkb_hex}'::geometry, '{{[,{date}]}}');" )
+
+        # add trimmed point cloud to the scenario database
+        pg.cur.execute(
+            f'INSERT INTO scenario.fred_vege_a14_las_chunks(geom, name, nas, origin, existence) '
             'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(name)s, %(nas)s, ST_SetSRID(%(origin)s::geometry, %(srid)s), %(existence)s )',
             {'geom': chunk_geom.wkb_hex, 'srid': 27700, 'name': pruned_filename,
              'nas': f"{utils.a14_root}vege_pruned_las", 'origin': chunk_origin.wkb_hex,
-             'existence': utils.before_time_range})
+             'existence': '{[date,]}'})
 
 
 def integrate_path(seg_name):
