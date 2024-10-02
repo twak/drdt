@@ -28,7 +28,7 @@ geoserver_url = "http://dt.twak.org:8080/"
 start_time = "2024-06-10 00:00:00" # the start of now is the day tom joined dr.
 before_time_range = '{[2021-01-01,]}' # default creation date for cam-highway data
 
-table_name = "dt01"
+db_name = "dt01"
 
 class Postgres():
     def __init__(self, pass_file="pwd.json"):
@@ -184,3 +184,9 @@ def list_endpoints():
     out +=  "</ul>"
 
     return out
+
+def post_geom(geom):
+    """
+    string for postgres
+    """
+    return f"ST_SetSRID('{geom.wkb_hex}'::geometry, {sevenseven})"

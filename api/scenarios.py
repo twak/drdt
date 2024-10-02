@@ -127,8 +127,10 @@ def create_user():
             pg.cur.execute( f"CREATE USER {username} WITH PASSWORD '{db_password}';" )
 
             # read-only on the base dbs
-            pg.cur.execute( f"GRANT CONNECT ON DATABASE {utils.table_name} TO {username};")
-            pg.cur.execute( f"GRANT USAGE ON SCHEMA public TO {username};")
+            pg.cur.execute( f"GRANT CONNECT, CREATE ON DATABASE {utils.db_name} TO {username};")
+            pg.cur.execute(f"GRANT USAGE ON SCHEMA public TO {username};")
+            pg.cur.execute(f"GRANT USAGE, CREATE ON SCHEMA scenario TO {username};")
+
 
             for db in all_base_dbs_it():
                 try:
@@ -280,6 +282,7 @@ def do_add_table(scenario, api_key, table_name, like=None):
 
         pg.cur.execute(f"CREATE TABLE IF NOT EXISTS scenario.{tn} ({sl});")
         pg.cur.execute(f"ALTER TABLE scenario.{tn} OWNER TO {human};")
+        pg.cur.execute(f"GRANT SELECT, INSERT, UPDATE, DELETE ON scenario.{tn} TO {human};")
 
 def add_table():
 
