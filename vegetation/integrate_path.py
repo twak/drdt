@@ -14,6 +14,7 @@ import laspy
 import matplotlib.pyplot as plt
 from PIL import Image, ImageEnhance
 from shapely import wkb, wkt
+from api import time_and_space
 
 """
 Given a linestring ( a road segment ) we, for each line therin, and compute a wedge shape around it. 
@@ -111,17 +112,25 @@ def perp_vector_triple(linestring, i):
 
 def process_wedge(eh, start, mid, end, i, ls, sh, seg_name, workdir):
 
+    print(f"now processing wedge {ls}")
     global veg_horiz_integral, to_prune_horiz_integral
 
     with Postgres() as pg2:
 
-        pg2.cur.execute(
-            f"""
-                        SELECT type, name, geom, origin
-                        FROM public.a14_las_chunks
-                        WHERE ST_DWithin(geom, ST_SetSRID( '{ls.wkb_hex}'::geometry, {utils.sevenseven} ) , 10)
-                        """
-        )
+
+        def loc_query(ch):
+            return f" AND ST_DWithin({ch}.geom, ST_SetSRID('{ls.wkb_hex}'::geometry, {utils.sevenseven} ), 10)"
+
+        results = time_and_space.time_and_scenario_query("a14_las_chunks", location=loc_query, pg=pg2,
+                            user="bob", scenario="vegetation", cols=["type", "geom", "origin"], time=utils.start_time)
+
+        # pg2.cur.execute(
+        #     f"""
+        #                 SELECT type, name, geom, origin
+        #                 FROM public.a14_las_chunks
+        #                 WHERE ST_DWithin(geom, ST_SetSRID( '{ls.wkb_hex}'::geometry, {utils.sevenseven} ) , 10)
+        #                 """
+        # )
 
         lases = []
 
@@ -137,11 +146,11 @@ def process_wedge(eh, start, mid, end, i, ls, sh, seg_name, workdir):
 
         length = np.linalg.norm(end - start)
 
-        for b in pg2.cur.fetchall():
+        for b in results: # pg2.cur.fetchall():
 
-            chunk_name = b[1]
-            chunk_geom = shapely.wkb.loads(b[2], hex=True)
-            chunk_origin = shapely.wkb.loads(b[3], hex=True)
+            chunk_name = b["name"]
+            chunk_geom = b["geom"] # shapely.wkb.loads(b[2], hex=True)
+            chunk_origin = b["origin"]
 
             print("processing las chunk", chunk_name)
             dest = os.path.join(workdir, chunk_name)
@@ -322,7 +331,6 @@ def integrate_path(seg_name):
                 boundary = [ a, b, c ,d ]
                 ls = Polygon(boundary)
 
-                print (f"now processing wedge {ls}")
                 process_wedge(eh, start, mid, end, i, ls, sh, seg_name, workdir)
 
                 MAGMA = Image.open( os.path.join (Path(__file__).parent, "magma_orig.png") )

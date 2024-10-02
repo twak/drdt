@@ -95,17 +95,28 @@ def offset_las (lasfile, x, y):
 
 def build_commond_state():
 
-    vals = get_nsew()
+    scenario_name, vals = get_scenario_name()
 
+    if vals is not None: # error
+        return vals, scenario_name
+
+    vals = get_nsew()
     if isinstance(vals, str):
         return vals, None
 
+    return vals, scenario_name
+
+
+def get_scenario_name(api_key=None):
+
+    vals = None # error message
     scenario_name = None
-    user = None
 
     with Postgres() as pg:
 
-        api_key = request.args.get('api_key', None)
+        if api_key is None:
+            api_key = request.args.get('api_key', None)
+
         if api_key is not None:
 
             user = scenarios.request_loader(request)
@@ -120,7 +131,7 @@ def build_commond_state():
             else:
                 vals = f"bad api key"
 
-    return vals, scenario_name
+    return scenario_name, vals
 
 
 def envelope(vals):

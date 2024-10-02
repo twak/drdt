@@ -8,16 +8,28 @@ from flask import request
 
 from . import utils
 
+def time_and_scenario_query_api (table, location = None, cols = [], pg=None, name = "name", time=None, api_key):
+    fixme user is not defined...
+    scenario_name = utils.get_scenario_name(api_key)
+    return time_and_scenario_query(table, location, scenario_name, cols, pg, name, time, user_override=)
 
-def time_and_scenario_query (table, location = None, scenario = None, cols = [], pg=None, name = "name"):
+
+def time_and_scenario_query (table, location = None, scenario = None, cols = [], pg=None, name = "name", time=None, user_override=None):
 
     if isinstance(location, str):
         return location
 
     now_utc = datetime.now(timezone.utc) # all is UTC and 27700
-    time = request.args.get('time', now_utc.strftime('%Y-%m-%d %H:%M:%S'))
+    if time is None:
+        time = request.args.get('time', now_utc.strftime('%Y-%m-%d %H:%M:%S'))
     tn = f"public.{table}"
-    user = None if flask_login.current_user.is_anonymous else flask_login.current_user.id
+
+    if user_override is not None:
+        user = user_override
+    elif flask_login.current_user == None or flask_login.current_user.is_anonymous:
+        user = None
+    else:
+        user = flask_login.current_user.id
 
     cols_to_decode = []
 
@@ -47,8 +59,10 @@ def time_and_scenario_query (table, location = None, scenario = None, cols = [],
     def loc_str(ch):
         if location is None:
             return ""
-        else:
+        elif isinstance(location, dict): # else if ch is a dictionary (rectanglular bounds)
             return f" AND ST_Intersects ( {ch}.geom, {utils.envelope(location)} )"
+        else: # custom bounds
+            return location(ch)
 
     if scenario is None:
         q = f"""
