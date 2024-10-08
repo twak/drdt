@@ -98,7 +98,7 @@ def go():
         pg.cur.execute(
             f"""
             SELECT  type, name, nas, origin
-            FROM public.las_chunks
+            FROM public.a14_las_chunks
 --             WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint(598555.51,262383.29), 27700 ) , 1)
             """)
 

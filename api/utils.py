@@ -5,9 +5,10 @@ import laspy
 import flask
 from flask import request
 from . import scenarios, app
+import os
 
 domain = "http://dt.twak.org:5000"
-sevenseven = 27700 # bng crs
+sevenseven = 27700 # bng crs`
 sevenfour = 7405 # bng + height crs
 cur, con = None, None
 
@@ -184,6 +185,19 @@ def list_endpoints():
     out +=  "</ul>"
 
     return out
+
+def unique_file(location, stub, extn="las"):
+    # find unique filename
+    j = 0
+    while (True):
+        name = f"{stub}{'' if j == 0 else '_' + str(j)}.{extn}"
+        f = os.path.join(location, name)
+        if not os.path.exists(f):
+            break
+
+        j = j + 1
+    return f, name
+
 
 def post_geom(geom):
     """

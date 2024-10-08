@@ -121,7 +121,7 @@ def process_wedge(eh, start, mid, end, i, ls, sh, seg_name, workdir):
             return f" AND ST_DWithin({ch}.geom, ST_SetSRID('{ls.wkb_hex}'::geometry, {utils.sevenseven} ), 10)"
 
         results = time_and_space.time_and_scenario_query_api("a14_las_chunks", location=loc_query, pg=pg2,
-                            api_key="f8c82b4e8156eef1c7a2f24dfd46196a", cols=["type", "geom", "origin", "nas"], time="2024-12-10 00:00:00")
+                            api_key="f8c82b4e8156eef1c7a2f24dfd46196a", cols=["type", "geom", "origin", "nas"], time="2026-12-10 00:00:00")
 
         lases = []
 
@@ -174,7 +174,7 @@ def process_wedge(eh, start, mid, end, i, ls, sh, seg_name, workdir):
                 if False:  # create pruned las chunks, remove old at time
                     create_pruned_pc(chunk_name, chunk_geom, chunk_origin, lasdata, pruned_filename, xyz)
 
-                if False:
+                if True:
                     create_pc_with_prune_class(lasdata, pruned_filename, xyz)
 
                 if True:  # integrate down whole segment
@@ -201,7 +201,9 @@ def create_pc_with_prune_class(lasdata, pruned_filename, xyz):
     global veg_horiz_integral, to_prune_horiz_integral, lases_with_classification, integral_vert, path, vi_pad, v_cut_move
     lases_with_classification.append(f"{pruned_filename}.las")
 
-    # with laspy.open(os.path.join("/home/twak/Downloads/cut_as_classification/", f"{pruned_filename}.las"), mode="w", header=lasdata.header) as writer:
+    location = f"{utils.nas_mount_w}{utils.a14_root}vege_pruned_las/"
+    file = utils.unique_file(location, pruned_filename)
+    # with laspy.open(file, mode="w", header=lasdata.header) as writer:
     to_keep = xyz[:, 5].astype(int)  # remove before start, end.
     to_remove = xyz[
         ((xyz[:, 4] == 3) | (xyz[:, 4] == 4) | (xyz[:, 4] == 5)) &
@@ -267,20 +269,24 @@ def integrate_path(seg_name):
     # vertical integral - overlay on OS aerial
     background_path = os.path.join("/home/twak/Downloads/aerial.png")
 
-    with Postgres(pass_file="pwd_rw.json") as pg:
-        pg.cur.execute(f'DROP TABLE IF EXISTS public.a14_pruned_las_chunks')
-        pg.cur.execute("""
-        CREATE TABLE IF NOT EXISTS public.a14_pruned_las_chunks
-        (
-            geom geometry,
-            type text COLLATE pg_catalog."default",
-            name text COLLATE pg_catalog."default" NOT NULL,
-            nas text COLLATE pg_catalog."default",
-            origin geometry(Point,27700),
-            existence tsmultirange,
-            CONSTRAINT a14_pruned_las_chunks_pkey PRIMARY KEY (name)
-        )
-        """)
+    # with Postgres(pass_file="pwd_rw.json") as pg:
+    #     pg.cur.execute(f'DROP TABLE IF EXISTS public.a14_pruned_las_chunks')
+    #     pg.cur.execute("""
+    #     CREATE TABLE IF NOT EXISTS public.a14_pruned_las_chunks
+    #     (
+    #         geom geometry,
+    #         type text COLLATE pg_catalog."default",
+    #         name text COLLATE pg_catalog."default" NOT NULL,
+    #         nas text COLLATE pg_catalog."default",
+    #         origin geometry(Point,27700),
+    #         existence tsmultirange,
+    #         CONSTRAINT a14_pruned_las_chunks_pkey PRIMARY KEY (name)
+    #     )
+    #     """)
+
+    magma = Image.open(os.path.join(Path(__file__).parent, "magma_orig.png"))
+    magma = np.asarray(magma)
+    magma = magma[:, :, :3]
 
     with (Postgres() as pg):
         pg.cur.execute(f"""
@@ -300,9 +306,10 @@ def integrate_path(seg_name):
 
         print(path)
 
+        # create a blank image for the vertical integral
         integral_vert = np.zeros(( int ( (path.bounds[2] - path.bounds[0] + 2*vi_pad ) * vi_scale), int ( ( path.bounds[3] - path.bounds[1] + 2 * vi_pad ) * vi_scale ) ) )
 
-        urllib.request.urlretrieve(
+        urllib.request.urlretrieve( # background for vertical image
             f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
             f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_aerial&exceptions=application%2Fvnd.ogc.se_inimage&"
             f"SRS=EPSG%3A27700&WIDTH={integral_vert.shape[0]}&HEIGHT={integral_vert.shape[1]}"
@@ -339,39 +346,32 @@ def integrate_path(seg_name):
 
                 process_wedge(eh, start, mid, end, i, ls, sh, seg_name, workdir)
 
-                MAGMA = Image.open( os.path.join (Path(__file__).parent, "magma_orig.png") )
-                MAGMA = np.asarray(MAGMA)
-                MAGMA = MAGMA[:, :, :3]
 
-                # horizontal density integral
-                for name, array in [("veg", to_prune_horiz_integral), ("horiz", veg_horiz_integral)]:
-                    cutoff = max(0.01,np.percentile(array, 99.5))
-                    # cutoff = max(0.01, array.max() )
-                    # r = array/cutoff
+            # horizontal density integral
+            for name, array in [("veg", to_prune_horiz_integral), ("horiz", veg_horiz_integral)]:
+                cutoff = max(0.01,np.percentile(array, 99.5))
+                r = magma[1][(np.minimum(magma.shape[1] - 1, array * magma.shape[1] / cutoff)).astype(np.int32)]
 
-                    r = MAGMA[1][( np.minimum(MAGMA.shape[1]-1, array * MAGMA.shape[1]/cutoff )).astype(np.int32)]
+                r=np.flip ( r, axis=0 ) # upside down
+                im = Image.fromarray(r.astype(np.uint8))
+                im.save( os.path.join("/home/twak/Downloads", f"{name}{'{:02d}'.format(i)}.png") )
 
-                    # r = 255 - (array * 255 / cutoff).clip(0, 255)
-                    r=np.flip ( r, axis=0 ) # upside down
-                    im = Image.fromarray(r.astype(np.uint8))
-                    im.save( os.path.join("/home/twak/Downloads", f"{name}{'{:02d}'.format(i)}.png") )
+            # vertical density integral
+            cutoff = max ( integral_vert.max() * 0.75, 1)
+            r = 255 - (integral_vert * 255 / cutoff)
+            r = r.transpose()
+            r = np.flip(r, axis=0)  # upside down
+            o = np.zeros((r.shape[0], r.shape[1], 4), dtype=np.uint8)
+            o[:, :, 3] = 255-r # density = transparency
+            o[:, :, :3] = [255, 120, 255] # purple!
+            im = Image.fromarray(o.clip(0, 255))
 
-                cutoff = max ( integral_vert.max() * 0.75, 1)
-                r = 255 - (integral_vert * 255 / cutoff)
-                r = r.transpose()
-                r = np.flip(r, axis=0)  # upside down
-                o = np.zeros((r.shape[0], r.shape[1], 4), dtype=np.uint8)
-                o[:, :, 3] = 255-r # density = transparency
-                o[:, :, :3] = [255, 120, 255] # purple!
-                im = Image.fromarray(o.clip(0, 255))
-
-                bg = Image.open(background_path).convert("RGBA")
-                bg = ImageEnhance.Brightness(bg).enhance(0.3)
-                bg.paste(im, (0, 0), im)
-                # override alpha
-                bg.putalpha(255)
-                bg.save(os.path.join("/home/twak/Downloads", f"vert{'{:02d}'.format(i)}.png"))
-
+            bg = Image.open(background_path).convert("RGBA")
+            bg = ImageEnhance.Brightness(bg).enhance(0.3)
+            bg.paste(im, (0, 0), im)
+            # override alpha
+            bg.putalpha(255)
+            bg.save(os.path.join("/home/twak/Downloads", f"vert{'{:02d}'.format(i)}.png"))
 
 if __name__ == '__main__':
     integrate_path("11")
