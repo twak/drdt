@@ -8,7 +8,6 @@ import laspy
 import random
 from numpy.linalg import norm
 import math
-import os
 from shapely.geometry import Polygon, Point
 
 def find_pt_at_dist(path, dist, lengths, l_accum):

@@ -4,14 +4,12 @@ import api.utils as utils
 from api.utils import Postgres
 import shapely
 from shapely.geometry import Polygon
-from shapely import to_geojson
 import numpy as np
 from pathlib import Path
 import os
 import shutil
 import subprocess
 import laspy
-import matplotlib.pyplot as plt
 from PIL import Image, ImageEnhance
 from shapely import wkb, wkt
 from api import time_and_space
@@ -196,15 +194,13 @@ def integrate_horiz(xyz, mid):
     np.histogram2d(veg_togo[:, 2], veg_togo[:, 0], bins=(200, 1000), range=[[-1, 19], [-50, 50]], density=False)[0]
 
 
-def create_pc_with_prune_class(lasdata, pruned_filename, xyz):
+def create_pc_with_prune_class(lasdata, pruned_filename, xyz, do_write=True):
     # write point cloud with pruned classification
     global veg_horiz_integral, to_prune_horiz_integral, lases_with_classification, integral_vert, path, vi_pad, v_cut_move
     lases_with_classification.append(f"{pruned_filename}.las")
 
-    location = f"{utils.nas_mount_w}{utils.a14_root}vege_pruned_las/"
-    file = utils.unique_file(location, pruned_filename)
-    # with laspy.open(file, mode="w", header=lasdata.header) as writer:
-    to_keep = xyz[:, 5].astype(int)  # remove before start, end.
+
+    to_keep = xyz[:, 5].astype(int)  # remove before start, end planes on segment (but keep pruned!)
     to_remove = xyz[
         ((xyz[:, 4] == 3) | (xyz[:, 4] == 4) | (xyz[:, 4] == 5)) &
          (xyz[:, 0] + v_cut_move> 0) &
@@ -212,7 +208,12 @@ def create_pc_with_prune_class(lasdata, pruned_filename, xyz):
 
     # for each index still in to_remove, set classification in laspy to 13
     lasdata.classification[to_remove[:, 5].astype(int)] = 13
-    # writer.write_points(lasdata.points[to_keep])
+
+    if do_write:
+        location = f"{utils.nas_mount_w}{utils.a14_root}vege_pruned_las/"
+        file = utils.unique_file(location, pruned_filename)
+        with laspy.open(file, mode="w", header=lasdata.header) as writer:
+            writer.write_points(lasdata.points[to_keep])
 
     # overhead view of the pruned vegetation
     vert_data = lasdata.xyz[to_remove[:, 5].astype(int)]
