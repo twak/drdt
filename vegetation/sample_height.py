@@ -9,11 +9,12 @@ import shutil
 import laspy
 import math
 import sys
+from vegetation.polyline import Polyline
 
 """
-We have a bunch of shape/polyline that doesn't have heights in the database.
+We have a bunch of shape/polyline that doesn't have heights in the database. And are too long.
 
-This script is a first attempt to identify the height from LiDAR data.
+This script is a first attempt to identify the height from LiDAR data & trim to 200m lengths.
 
 It filters for ground-based points and takes the mean. For points where there is no data, it takes the nearest point.
 
@@ -43,7 +44,8 @@ def integrate_path():
             if len ( path.geoms ) != 1:
                 raise Exception("path is not a single linestring")
 
-            for linestring in path.geoms:
+
+            for linestring in Polyline(path.wkt).split_to_lenghts(200):
 
                 for i in range (len(linestring.coords)):
 
@@ -126,8 +128,8 @@ def integrate_path():
                 ls = LineString( new_coords )
                 with Postgres(pass_file="pwd_rw.json") as pg:
                     pg.cur.execute( f"""
-                        UPDATE public.a14_segments
-                        SET geom_z= ST_GeomFromText('{ls.wkt}', {utils.sevenfour})
+                        INSERT INTO public.a14_vegetation_segments (id, geom, 'Section_La', 'Section_St', 'Section_En', 'Length', 'Start_Date', 'End_Date', 'Section_Fu', 'Road_Numbe', 'Road_Name', 'Road_Class', 'Single_or_' , geom_z)
+                        VALUES (geom_z= ST_GeomFromText('{ls.wkt}', {utils.sevenfour})
                         WHERE id = '{id}'
                         """)
 

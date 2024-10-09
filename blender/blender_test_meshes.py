@@ -7,10 +7,13 @@ import urllib.request
 scratch = "/home/twak/Downloads/mesh_test"
 os.makedirs(scratch, exist_ok=True)
 
-def load_for(x, y):
+"""
+This script is run inside blender, and will stream the meshes as you move the tiny van moves around the scene. Run from test_meshes.blend.
+"""
 
-    pad = 30
-    origin = [598820, 262061]
+def load_for(x, y, pad = 30):
+
+    origin = [598820, 262061] # 27700
 
     global mesh_collection
 
@@ -21,6 +24,10 @@ def load_for(x, y):
             folder = data[0]
             x,y = data[1]- origin[0], data[2]-origin[1]
             files = data[3].split(";")
+            fbx_file = None
+
+            print (f"loading {folder} at {x},{y}")
+            
             for file in files:
                 if file in bpy.data.objects:
                     continue
@@ -28,20 +35,26 @@ def load_for(x, y):
                 if not os.path.exists(dest):
                     shutil.copyfile( f"/home/twak/citnas/08. Researchers/tom/a14/mesh_chunks/{folder}/{file}",dest)
                 if file.endswith(".fbx"):
-                    bpy.context.view_layer.active_layer_collection =  bpy.context.view_layer.layer_collection.children.get(mesh_collection.name)
-                    bpy.ops.import_scene.fbx(filepath=f"{scratch}/{file}")
-                    for o in bpy.context.selected_objects: # created meshes
-                        o.location.x += x
-                        o.location.y += y
-                        o.name = file
-                        # mesh_collection.objects.link(o)
+                    fbx_file = file
+                    
+            if fbx_file is not None:
+                if fbx_file in bpy.data.objects:
+                    print(f"skipping {fbx_file}")
+                    continue
+                bpy.context.view_layer.active_layer_collection =  bpy.context.view_layer.layer_collection.children.get(mesh_collection.name)
+                bpy.ops.import_scene.fbx(filepath=f"{scratch}/{fbx_file}")
+                for o in bpy.context.selected_objects: # created meshes
+                    o.location.x += x
+                    o.location.y += y
+                    o.name = file
+                            # mesh_collection.objects.link(o)
 
 
 def on_transform_completed(obj, scene):
 
     # when the van moves, load a window around it
     loc = bpy.context.scene.objects["van"].location
-    load_for(loc.x, loc.y)
+    load_for(loc.x, loc.y, pad=20)
 
     # select the van again
     bpy.context.active_object.select_set(False)
@@ -59,9 +72,16 @@ def on_depsgraph_update(scene, depsgraph):
     obj = bpy.context.active_object
     on_transform_completed(obj, scene)
 
-mesh_collection = bpy.data.collections.new("mesh_collection")
-bpy.context.scene.collection.children.link(mesh_collection)
+if __name__ == '__main__':
 
-# everytime anything moves (or rotates) - update...
-on_depsgraph_update.operator = None
-bpy.app.handlers.depsgraph_update_post.append(on_depsgraph_update)
+
+    mesh_collection = bpy.data.collections.new("mesh_collection")
+    bpy.context.scene.collection.children.link(mesh_collection)
+        
+    if False: # interactive
+
+        # everytime anything moves (or rotates) - update...
+        on_depsgraph_update.operator = None
+        bpy.app.handlers.depsgraph_update_post.append(on_depsgraph_update)
+    else: # bulk load
+        load_for(0, 0, pad=150)

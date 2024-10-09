@@ -22,7 +22,7 @@ def find_pt_at_dist(path, dist, lengths, l_accum):
 
             return (path[i+1] - path[i]) * extra / lengths[i] + path[i], normal, perp
 
-    return path[-1]
+    return path[-1], None, None
 
 def grow_trees_on( seg_name, date = "2024-10-04 17:21:34" ):
     print(f"Growing trees on path#{seg_name}")
