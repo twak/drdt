@@ -112,9 +112,6 @@ def go():
                 workdir = os.path.join ( scratch, chunk_name )
 
 
-                for i in range (1,4):
-                    os.makedirs( os.path.join ( workdir, f"stage{i}"), exist_ok=True)
-
                 c2.execute ( f"""
                     SELECT type,name
                     FROM public.a14_las_chunks
@@ -129,6 +126,9 @@ def go():
                 if os.path.exists(f"{mesh_chunks}/{chunk_name}"):
                     print("output already exists, skipping")
                     continue # guess we've already done this
+
+                for i in range (1,4):
+                    os.makedirs( os.path.join ( workdir, f"stage{i}"), exist_ok=True)
 
                 os.makedirs(workdir, exist_ok=True)
 

@@ -20,10 +20,10 @@ for s in sys.argv[1:]:
         root = s.split("=")[1].replace('""',"")
 
 #if root:
-#    root = root+"/"+name
+root = root+"/"+name
 
-name = "w_598200.0_262600.0"  # debug!
-root = f"/home/twak/Downloads/foo/{name}"
+#name = "w_598200.0_262600.0"  # debug!
+#root = f"/home/twak/Downloads/foo/{name}"
 
 print (sys.argv[1:])
 print (f"processing {root}")
@@ -69,26 +69,35 @@ for target in ["vegetation", "road"]:
 
 t = bpy.context.scene.objects["road"]
 
-t.material_slots[0].material.node_tree.nodes["orthomosaic"].image = bpy.data.images.load(os.path.join(input_folder, f"pavement.png"))
-t.material_slots[0].material.node_tree.nodes["aerial"     ].image = bpy.data.images.load(os.path.join(input_folder, f"aerial.png"))
+if len (t.data.vertices) > 0: # can't bake without geometry
 
-img = bpy.data.images.new("pavement",512,512)
-img.filepath = os.path.join(output_folder, f"{name}_pavement.jpg")
-img.file_format = 'JPEG'
+    t.material_slots[0].material.node_tree.nodes["orthomosaic"].image = bpy.data.images.load(os.path.join(input_folder, f"pavement.png"))
+    t.material_slots[0].material.node_tree.nodes["aerial"     ].image = bpy.data.images.load(os.path.join(input_folder, f"aerial.png"))
 
-# bake the blended pavement texture
-node = t.data.materials[0].node_tree.nodes["bake_placeholder"]
-node.image = img
+    img = bpy.data.images.new("pavement",256,256)
+    img.filepath = os.path.join(output_folder, f"{name}_pavement.jpg")
+    img.file_format = 'JPEG'
 
-if True:
-    raise Exception("Debug says stop here")
+    # bake the blended pavement texture
+    node = t.data.materials[0].node_tree.nodes["bake_placeholder"]
+    node.image = img
 
-t.select_set(True)
-bpy.ops.object.bake(type='DIFFUSE', save_mode='EXTERNAL', filepath=img.filepath)
-img.save_render(img.filepath)
+    #if True:
+    #    raise Exception("Debug says stop here")
 
-t.material_slots[0].material = bpy.data.materials["roadmix_baked"]
-t.material_slots[0].material.node_tree.nodes["baked"].image = img
+    # if the road has more than one vertex:
+
+
+    t.select_set(True)
+    bpy.ops.object.bake(type='DIFFUSE', save_mode='EXTERNAL', filepath=img.filepath)
+    img.save_render(img.filepath)
+
+    t.material_slots[0].material = bpy.data.materials["roadmix_baked"]
+    t.material_slots[0].material.node_tree.nodes["baked"].image = img
+else:
+    # delete the road mesh.
+    objs = bpy.data.objects
+    objs.remove(objs["road"], do_unlink=True)
 
 # save the fbx file
 for target in ["vegetation", "road"]:
