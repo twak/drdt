@@ -124,9 +124,9 @@ def find_mesh():
 
         /v0/find-mesh?w=598227.56&n=262624.51&e=598296.11&s=262672.38
 
-        returns a list of pairs - the first of which is the folder_name, the second is semi-colon delimetered list of files in the folder which make up the mesh:
+        returns a list of pairs - the first of which is the folder_name, the second is semi-colon delimetered list of files in the folder which make up the mesh, and the nas location in which to find the folder:
 
-        [["w_598260.0_262620.0", 598260.0, 262620.0, "w_598260.0_262620.0_pavement.jpg;w_598260.0_262620.0_mesh.fbx"], ["w_598270.0_262620.0", 598270.0, 262620.0, "w_598270.0_262620.0_mesh.fbx;w_598270.0_262620.0_pavement.jpg"], ...]
+        [["w_598260.0_262620.0", 598260.0, 262620.0, "w_598260.0_262620.0_pavement.jpg;w_598260.0_262620.0_mesh.fbx"], ["w_598270.0_262620.0", 598270.0, 262620.0, "w_598270.0_262620.0_mesh.fbx;w_598270.0_262620.0_pavement.jpg", "/08. Researchers/tom/a14/mesh_chunks_50/w_598250.0_262650.0"], ...]
 
         In this output, the first mesh is made up of the files:
 
@@ -137,12 +137,17 @@ def find_mesh():
 
         You can optionally include a scale (currently 10 (default) or 50 meters) to change the size of the chunks returned:
         /v0/find-mesh?w=598227.56&n=262624.51&e=598296.11&s=262672.38&scale=50
+
+        These meshes are created using pts_to_mesh.py.
     """
 
     vals, scenario_name = utils.build_commond_state()
     scale = 10
     if 'scale' in request.args:
         scale = int(request.args.get('scale'))
+
+    if scale not in [10, 50]:
+        return f"uknown scale {scale} - currently we have 10 and 50m chunks"
 
     def loc(ch):
         return f" AND ST_Intersects ( {ch}.geom, {utils.envelope(vals)} ) AND chunk_size = {scale}"
