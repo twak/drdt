@@ -84,12 +84,13 @@ def run_blender( workdir, chunk_size ):
     return out.returncode
 
 def go():
-
-    mesh_chunks = f"{utils.nas_mount_w}{utils.a14_root}mesh_chunks_50"
+    chunk_size = 50
+    mesh_route = "mesh_chunks/"
+    mesh_chunks = f"{utils.nas_mount_w}{utils.a14_root}{mesh_route}"
     table_name = "a14_mesh_chunks_test"
 
     x_range, y_range = [598100, 601700], [261400, 263000]
-    chunk_size = 50
+
     scratch = "/home/twak/Downloads/foo"
 
     with Postgres(pass_file="pwd_rw.json") as pg:
@@ -173,7 +174,7 @@ def go():
                     c2.execute(
                         f'INSERT INTO {table_name}(geom, name, nas, files, origin, chunk_size) '
                         'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(name)s, %(nas)s, %(files)s, ST_SetSRID(%(origin)s::geometry, %(srid)s), %(chunk_size)s)',
-                        {'geom': ls.wkb_hex, 'srid': 27700, 'type': 'point_cloud', 'name': chunk_name, 'nas': f"{utils.mesh_route}/{chunk_name}", 'files':file_str, 'origin': origin.wkb_hex, 'chunk_size': chunk_size})
+                        {'geom': ls.wkb_hex, 'srid': 27700, 'type': 'point_cloud', 'name': chunk_name, 'nas': f"{utils.a14_root}{mesh_route}{chunk_name}", 'files':file_str, 'origin': origin.wkb_hex, 'chunk_size': chunk_size})
 
                     pg.con.commit()
 

@@ -14,6 +14,8 @@ app.debug = True
 login_manager = flask_login.LoginManager()
 login_manager.init_app(app)
 
+from flask import request
+
 @app.route('/')
 def index():
     """
@@ -118,7 +120,7 @@ def find_mesh():
         returns a list of nas-las files which can be found on the nas in the folder:
             /08. Researchers/tom/a14/mesh_chunks
 
-        for example, with the coords (epsg:27700)
+        for example, with the coords (epsg:27700) and collecting the 10 x 10m chunks: (
 
         /v0/find-mesh?w=598227.56&n=262624.51&e=598296.11&s=262672.38
 
@@ -132,12 +134,21 @@ def find_mesh():
         /08. Researchers/tom/a14/mesh_chunks/w_598260.0_262620.0/w_598260.0_262620.0_pavement.jpg
 
         with offset 598260.0, 262620.0
+
+        You can optionally include a scale (currently 10 (default) or 50 meters) to change the size of the chunks returned:
+        /v0/find-mesh?w=598227.56&n=262624.51&e=598296.11&s=262672.38&scale=50
     """
 
     vals, scenario_name = utils.build_commond_state()
+    scale = 10
+    if 'scale' in request.args:
+        scale = int(request.args.get('scale'))
+
+    def loc(ch):
+        return f" AND ST_Intersects ( {ch}.geom, {utils.envelope(vals)} ) AND chunk_size = {scale}"
 
     with utils.Postgres() as pg:
-        results = time_and_scenario_query("a14_mesh_chunks", location=vals, scenario=scenario_name, cols=['origin', 'files'], pg=pg)
+        results = time_and_scenario_query("a14_mesh_chunks", location=loc, scenario=scenario_name, cols=['origin', 'files', 'nas'], pg=pg)
 
     if isinstance(results, str):
         return results, 500
@@ -145,13 +156,10 @@ def find_mesh():
     out = []
     for x in results:
         pt = x['origin']
-        out.append((x['name'], pt.x, pt.y, x['files']))
+        out.append((x['name'], pt.x, pt.y, x['files'], x['nas']))
+
 
     return json.dumps(out)
-
-    return find_mesh_x("a14_mesh_chunks")
-
-
 
 @app.route("/v0/find-defect-meshes")
 def find_defect():

@@ -94,10 +94,10 @@ if len (t.data.vertices) > 0: # can't bake without geometry
 
     t.material_slots[0].material = bpy.data.materials["roadmix_baked"]
     t.material_slots[0].material.node_tree.nodes["baked"].image = img
-else:
-    # delete the road mesh.
-    objs = bpy.data.objects
-    objs.remove(objs["road"], do_unlink=True)
+# else:
+#     # delete the road mesh.
+#     objs = bpy.data.objects
+#     objs.remove(objs["road"], do_unlink=True)
 
 # save the fbx file
 for target in ["vegetation", "road"]:
