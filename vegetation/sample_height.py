@@ -1,3 +1,5 @@
+import random
+
 import api.utils as utils
 from api.utils import Postgres
 import shapely
@@ -25,34 +27,40 @@ def integrate_path():
 
     cachdir = Path("/home/twak/Downloads/las_cache")
     radius = 1
+    seg_count = 1
+
+    with Postgres(pass_file="pwd_rw.json") as pg:
+        pg.cur.execute("""
+            delete from public.a14_vegetation_segments;
+        """)
 
     with (Postgres() as pg):
         pg.cur.execute(f"""
-            SELECT  id, ST_AsText(geom), 'Section_La', 'Section_St', 'Section_En', 'Length', 'Start_Date', 'End_Date', 'Section_Fu', 'Road_Numbe', 'Road_Name', 'Road_Class', 'Single_or_'               
+            SELECT  id, ST_AsText(geom), \"Section_Fu\", \"Road_Name\", \"Road_Class\", \"Single_or_\"               
             FROM public.a14_segments
-            WHERE id != '14' 
+--             WHERE id = '14' 
             """ )
 
         for results in pg.cur.fetchall():
 
             path = shapely.from_wkt(results[1])
             id = results[0]
-            print("Integrating paths", id)
+            print(f"\nSplitting path id={id}")
 
-            new_coords = []
+            if id in [29,30,12,21,16]:
+                print(f"skipping slip road {id}")
+                continue
 
-            if len ( path.geoms ) != 1:
-                raise Exception("path is not a single linestring")
+            for seg in Polyline(path.wkt).split_to_lengths(200):
 
+                print(f"working on segment {seg}")
+                new_coords = []
+                for i in range (0,len(seg)):
 
-            for linestring in Polyline(path.wkt).split_to_lenghts(200):
-
-                for i in range (len(linestring.coords)):
-
-                    loc = np.array(linestring.coords[i])
-
+                    loc = seg[i]
                     # find las chunks around the point and download
-                    print (f"looking for las chunks around {loc} - {i} of {len(linestring.coords)}")
+                    print (f"looking for las chunks around {loc} - {i} of {len(seg)}")
+                    heights = []
 
                     if True:
                         with Postgres() as pg2:
@@ -63,8 +71,6 @@ def integrate_path():
                                    WHERE ST_DWithin(geom, ST_SetSRID( 'POINT({loc[0]} {loc[1]})'::geometry, {utils.sevenseven} ) , {radius})
                                    """
                             )
-
-                            heights = []
 
                             if pg2.cur.rowcount > 0:
 
@@ -78,6 +84,7 @@ def integrate_path():
                                             shutil.copy(src, dest)
 
                                         # read the las chunk with laspy
+                                        print (f"reading {y[1]}...")
                                         with laspy.open( dest ) as fh:
                                             lasdata = fh.read()
 
@@ -87,17 +94,19 @@ def integrate_path():
                                                         heights.append(pt[2])
 
                             print (f"found {len(heights)} heights")
+                    else:
+                        heights = [0,0,0,0] # dbg
 
-                        if len(heights) > 0:
-                            height = sum(heights) / len(heights)
-                        else:
-                            height = math.nan
+                    if len(heights) > 0:
+                        height = sum(heights) / len(heights)
+                    else:
+                        height = math.nan
 
-                    new_coords.append([loc[0], loc[1], height])
+                    new_coords.append ( [loc[0], loc[1], height] )
+                    # new_coords.append([loc[0] + random.gauss(0,0.1), loc[1] + random.gauss(0,0.1), height])
 
                 if len (new_coords) < 2:
                     print (f"unable to find sufficient data ({len(new_coords)}) for whole linestring")
-                    new_coords = None
                     break
 
                 # create empty list of coords
@@ -105,11 +114,10 @@ def integrate_path():
 
                 if len (valids) == 0:
                     print(f"unable to find any applicable heights linestring")
-                    new_coords = None
                     break
 
                 # assign missing heights as nearest
-                for j in range(len(linestring.coords)):
+                for j in range(len(seg)):
                     if new_coords[j][2] is math.nan:
                         best_dist = sys.float_info.max
                         for v in valids:
@@ -118,20 +126,24 @@ def integrate_path():
                                 best_dist = dist
                                 new_coords[j][2] = v[2]
 
-                if len(new_coords) != len(linestring.coords):
-                    new_coords = None
+                if len(new_coords) != len(seg):
+                    print("unable to find substitute heights for all points")
+                    break
 
-            print(new_coords)
+                print(new_coords)
 
-            # now we've found the coordinates for the segment, update the db column
-            if new_coords is not None:
-                ls = LineString( new_coords )
-                with Postgres(pass_file="pwd_rw.json") as pg:
-                    pg.cur.execute( f"""
-                        INSERT INTO public.a14_vegetation_segments (id, geom, 'Section_La', 'Section_St', 'Section_En', 'Length', 'Start_Date', 'End_Date', 'Section_Fu', 'Road_Numbe', 'Road_Name', 'Road_Class', 'Single_or_' , geom_z)
-                        VALUES (geom_z= ST_GeomFromText('{ls.wkt}', {utils.sevenfour})
-                        WHERE id = '{id}'
-                        """)
+                # now we've found the coordinates for the segment, update the db column
+                if new_coords is not None and len(new_coords) > 1:
+                    ls = LineString( new_coords )
+                    td = LineString ( [[x, y] for [x,y,z] in new_coords] )
+                    with Postgres(pass_file="pwd_rw.json") as pg:
+
+                        pg.cur.execute( f"""
+                            INSERT INTO public.a14_vegetation_segments (id, geom, \"Section_Fu\", \"Road_Name\", \"Road_Class\", \"Single_or_\" , geom_z)
+                            VALUES ({seg_count}, ST_GeomFromText('{td.wkt}', {utils.sevenseven}), '{results[2]}', '{results[3]}', '{results[4]}', '{results[5]}', ST_GeomFromText('{ls.wkt}', {utils.sevenfour}) )
+                            """)
+                    seg_count += 1
 
 if __name__ == '__main__':
+    np.seterr(all='raise')
     integrate_path()
