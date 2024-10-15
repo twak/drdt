@@ -1,5 +1,4 @@
 import urllib
-
 import api.utils as utils
 from api.utils import Postgres
 import shapely
@@ -9,6 +8,7 @@ import random
 from numpy.linalg import norm
 import math
 from shapely.geometry import Polygon, Point
+import os
 
 def find_pt_at_dist(path, dist, lengths, l_accum):
     # find a point at a distance along a path
@@ -24,13 +24,14 @@ def find_pt_at_dist(path, dist, lengths, l_accum):
 
     return path[-1], None, None
 
-def grow_trees_on( seg_name, date = "2024-10-04 17:21:34" ):
-    print(f"Growing trees on path#{seg_name}")
+def grow_trees_on( seg_name, date = "2024-10-04 17:21:34", las_table="scenario.fred_vege_a14_las_chunks", grown_route = "vege_grown_las/", trees_per_meter=0.05, segment_table="public.a14_vegetation_segments"):
+
+    # print(f"Growing trees on path#{seg_name}")
 
     with (Postgres() as pg):
         pg.cur.execute(f"""
             SELECT  id, ST_AsText(geom), geom_z,  'Section_La', 'Section_St', 'Section_En', 'Length', 'Start_Date', 'End_Date', 'Section_Fu', 'Road_Numbe', 'Road_Name', 'Road_Class', 'Single_or_'               
-            FROM public.a14_segments WHERE id = '{seg_name}' 
+            FROM {segment_table} WHERE id = '{seg_name}' 
             """ )
 
         results = pg.cur.fetchone()
@@ -44,14 +45,15 @@ def grow_trees_on( seg_name, date = "2024-10-04 17:21:34" ):
         lengths, l_accum = [], []
 
         sofa = 0
-        for i in range (0, len(path_z)-2):
+        for i in range (0, len(path_z)-1):
             lengths.append( norm ( path_z[i+1] - path_z[i] ) )
             sofa += lengths[-1]
             l_accum.append(sofa)
 
-        print(path)
+        for i in range(random.randint(1, max(2,int(sofa*trees_per_meter)))): # number of trees
 
-        for i in range(random.randint(3, 50)): # number of trees
+            print("t", end="")
+
             dist = random.uniform(0, sofa)
             xyz, _, perp = find_pt_at_dist ( path_z, dist, lengths, l_accum )
             xyz[2] += random.uniform(3, 6) # height
@@ -73,27 +75,23 @@ def grow_trees_on( seg_name, date = "2024-10-04 17:21:34" ):
             las.green = np.zeros(len(las.points), dtype=np.uint16)
             las.blue = np.zeros(len(las.points), dtype=np.uint16)
             las.green = np.random.uniform(0, 255, len(las.points))
-            # for j in range(0, len(las.points)):
-            #     las.green[j] = random.randint(0, 255)
             las.classification = np.zeros(len(las.points), dtype=np.uint8) + 5 # high vegetation
 
-            grown_route = "vege_grown_las/"
-
             location = f"{utils.nas_mount_w}{utils.a14_root}{grown_route}"
-            # location = f"/home/twak/Downloads/vege_grown_las/"
+            os.makedirs(location, exist_ok=True)
 
             las_file, las_name = utils.unique_file(location, f"{seg_name}_{i}" )
             las.write(las_file)
 
             with Postgres(pass_file="fred.json") as pg:
 
-                print(f"inserting into db {seg_name}")
+                # print(f"inserting into db {seg_name}")
                 rb = radius * 1.1 # because we wobble the thickness of the shell
                 tree_geom = Polygon([ [xyz[0]-rb, xyz[1]-rb], [xyz[0]-rb, xyz[1]+rb], [xyz[0]+rb, xyz[1]+rb], [xyz[0]+rb, xyz[1]-rb] ])
                 tree_origin = Point (xyz[0]-rb, xyz[1]-rb)
 
                 pg.cur.execute(
-                    f"INSERT INTO scenario.fred_vege_a14_las_chunks(geom, type, name, nas, origin, existence) "
+                    f"INSERT INTO {las_table}(geom, type, name, nas, origin, existence) "
                     f"VALUES ({utils.post_geom(tree_geom)}, 'point_cloud', '{las_name}', '{utils.a14_root}{grown_route}{las_name}', "
                     f"{utils.post_geom(tree_origin)}, '{{[{date},]}}' )")
 

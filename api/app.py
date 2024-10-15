@@ -27,7 +27,7 @@ def index():
     out = ("<html><head><title>drdt</title></head><body><h4>i am drdt; a digital twin</h4>"
           "<p>would you like to <a href='/login'>login</a>?</p>")
 
-    out += utils.list_endpoints()
+    out += scenarios.list_endpoints()
 
     out +=  "</body></html>"
 

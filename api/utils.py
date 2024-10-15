@@ -2,10 +2,12 @@ import json
 import psycopg2
 import math
 import laspy
-import flask
 from flask import request
-from . import scenarios, app
 import os
+
+"""
+non-Flask utils
+"""
 
 domain = "http://dt.twak.org:5000"
 sevenseven = 27700 # bng crs`
@@ -28,6 +30,7 @@ geoserver_url = "http://dt.twak.org:8080/"
 
 start_time = "2024-06-10 00:00:00" # the start of now is the day tom joined dr.
 before_time_range = '{[2021-01-01,]}' # default creation date for cam-highway data
+time_to_sql = "%Y-%m-%d %H:%M:%S"
 
 db_name = "dt01"
 
@@ -41,10 +44,10 @@ class Postgres():
         with open(f"api/{self.pass_file}") as fp:
             pwp = json.load(fp)
 
-        print(f"connecting to {pwp['dbname']}@{pwp['host']}")
+        # print(f"connecting to {pwp['dbname']}@{pwp['host']}")
         self.con = psycopg2.connect(dbname=pwp['dbname'], user=pwp['user'], password=pwp['password'], host=pwp['host'])
         self.cur = self.con.cursor()
-        print(f"success as {pwp['user']}")
+        # print(f"success as {pwp['user']}")
         return self
 
     def __exit__(self, exc_type, exc_val, exc_tb):
@@ -157,34 +160,6 @@ def get_nsew(other=[],opt={}):
 
     return vals
 
-def list_endpoints():
-    out = ""
-
-    # https://stackoverflow.com/questions/13317536/get-list-of-all-routes-defined-in-the-flask-app
-    def has_no_empty_params(rule):
-        defaults = rule.defaults if rule.defaults is not None else ()
-        arguments = rule.arguments if rule.arguments is not None else ()
-        return len(defaults) >= len(arguments)
-
-    out+="<h4>drdt is serving endpoints:</h4> <ul>"
-
-    for rule in app.app.url_map.iter_rules():
-        # Filter out rules we can't navigate to in a browser
-        # and rules that require parameters
-        if has_no_empty_params(rule):
-            url = flask.url_for(rule.endpoint, **(rule.defaults or {}))
-
-            methods = list ( rule.methods )
-            for m in ["OPTIONS", "HEAD"]:
-                if m in methods:
-                    methods.remove(m)
-
-            out += f"<li><a href='{url}'>{rule.endpoint}</a>: {', '.join(methods)}<br/><pre>{app.app.view_functions[rule.endpoint].__doc__}</pre></li><br>"
-           # links.append((url, rule.endpoint))
-
-    out +=  "</ul>"
-
-    return out
 
 def unique_file(location, stub, extn="las"):
     # find unique filename
@@ -204,3 +179,5 @@ def post_geom(geom):
     string for postgres
     """
     return f"ST_SetSRID('{geom.wkb_hex}'::geometry, {sevenseven})"
+
+

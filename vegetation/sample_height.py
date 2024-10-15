@@ -1,5 +1,4 @@
 import random
-
 import api.utils as utils
 from api.utils import Postgres
 import shapely
@@ -29,10 +28,10 @@ def integrate_path():
     radius = 1
     seg_count = 1
 
-    with Postgres(pass_file="pwd_rw.json") as pg:
-        pg.cur.execute("""
-            delete from public.a14_vegetation_segments;
-        """)
+    # with Postgres(pass_file="pwd_rw.json") as pg:
+    #     pg.cur.execute("""
+    #         delete from public.a14_vegetation_segments;
+    #     """)
 
     with (Postgres() as pg):
         pg.cur.execute(f"""
