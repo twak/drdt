@@ -42,10 +42,10 @@ def do_inspect(today, id, previous_date, inspector_id):
     ip.scenario_credentials = scenario_credentials
     ip.scenario_api_key = scenario_api_key
     ip.do_integral_vert = ip.do_integral_horiz = True
-    ip.report_path = f"{report_folder}/inspect_{today}_{id}"
+    ip.report_path = f"{report_folder}/{today}_inspect_{id}"
     ip.work_dir = work_dir
     ip.report_type = "Inspection"
-    ip.report_date = today
+    ip.date = today
     ip.go()
 
     return True
@@ -67,9 +67,9 @@ def do_prune(today, id, previous_date, pruner_id):
 
     prune.do_integral_vert = prune.do_integral_horiz = True # do the report
     prune.do_write_pruned_las = False
-    prune.report_path = f"{report_folder}/prune_{today}_{id}"
+    prune.report_path = f"{report_folder}/{today}_prune_{id}"
     prune.report_type = "Post-Prune Report"
-    prune.report_date = today
+    prune.date = today
     prune.go()
 
 

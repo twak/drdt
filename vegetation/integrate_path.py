@@ -16,7 +16,12 @@ from api import time_and_space
 
 """
 Given a linestring ( a road segment ) we, for each line therin, and compute a wedge shape around it. 
-We then download all las files within that wedge, orient them along the line, and add them to a density image.
+We then download all las files within that wedge, orient them along the line, do one of several things:
+
+- write a pruned las file (removing vegetation)
+- write a las file with vegetation to prune marked as class 13
+- create horizontal density integral images
+- create a vertical density integral image
 
 The output for the road segment is then a vegetation density pointcloud.
 """
@@ -62,7 +67,7 @@ class IntegratePath:
         self.las_table = "scenario.fred_vege_a14_las_chunks" # scenario table for las chunks
         self.scenario_credentials = "fred.json"
         self.scenario_api_key = "f8c82b4e8156eef1c7a2f24dfd46196a"
-        self.report_date = "2024-10-04 17:21:34"
+        self.date = "2024-10-04 17:21:34"
         self.report_type = "Pruning"
 
         # parameters of VTE cut-profile
@@ -150,7 +155,7 @@ class IntegratePath:
                 return f" AND ST_DWithin({ch}.geom, ST_SetSRID('{ls.wkb_hex}'::geometry, {utils.sevenseven} ), 10)"
 
             results = time_and_space.time_and_scenario_query_api("a14_las_chunks", location=loc_query, pg=pg2,
-                                api_key=self.scenario_api_key, cols=["type", "geom", "origin", "nas"], time="2026-12-10 00:00:00")
+                                                                 api_key=self.scenario_api_key, cols=["type", "geom", "origin", "nas"], time=self.date)
             lases = []
 
             v1 = np.array([*norm(end - start), 0])
@@ -209,9 +214,8 @@ class IntegratePath:
                     if self.do_integral_vert or self.do_classify_to_prune:
                         self.create_pc_with_prune_class(lasdata, pruned_filename, xyz)
 
-                    if self.do_integral_horiz:  # integrate down whole segment
+                    if self.do_integral_horiz:  
                         self.integrate_horiz(xyz, mid)
-
 
     def integrate_horiz(self, xyz, mid):
 
@@ -252,7 +256,7 @@ class IntegratePath:
             self.integral_vert += np.histogram2d( vert_data[:, 0], vert_data[:, 1], bins=(self.integral_vert.shape[0], self.integral_vert.shape[1]),
                         range=[[self.path.bounds[0] - self.vi_pad, self.path.bounds[2]+ self.vi_pad], [self.path.bounds[1]- self.vi_pad, self.path.bounds[3]+ self.vi_pad]], density=False)[0]
 
-    def create_pruned_pc(self, chunk_name, chunk_geom, chunk_origin, lasdata, pruned_filename, xyz, date = "2024-10-02 00:12:34"):
+    def create_pruned_pc(self, chunk_name, chunk_geom, chunk_origin, lasdata, pruned_filename, xyz):
 
         # a cloud without the pruned vegetation
         # global veg_horiz_integral, to_prune_horiz_integral, v_cut_move
@@ -284,14 +288,14 @@ class IntegratePath:
             # remove any existing pruned point cloud - create new entry with existence range setup (if not already removed by previous query)
             pg.cur.execute(
                 f"INSERT INTO {self.las_table} (geom, type, name, nas, origin, existence) "
-                f"SELECT {utils.post_geom(chunk_geom)}, 'point_cloud', '{chunk_name}', '{orig_nas_path}', {utils.post_geom(chunk_origin)}, '{{[,{date}]}}' "
+                f"SELECT {utils.post_geom(chunk_geom)}, 'point_cloud', '{chunk_name}', '{orig_nas_path}', {utils.post_geom(chunk_origin)}, '{{[,{self.date}]}}' "
                 f"WHERE NOT EXISTS (SELECT name FROM {self.las_table} WHERE name = '{chunk_name}' );" )
 
             # add trimmed point cloud to the scenario database
             pg.cur.execute(
                 f"INSERT INTO {self.las_table}(geom, type, name, nas, origin, existence) "
                 f"VALUES ({utils.post_geom(chunk_geom)}, 'point_cloud', '{pruned_filename}', '{utils.a14_root}{self.las_write_location}{pruned_filename}', "
-                f"{utils.post_geom(chunk_origin)}, '{{[{date},]}}' )" )
+                f"{utils.post_geom(chunk_origin)}, '{{[{self.date},]}}' )" )
 
 
     def go(self):
@@ -317,10 +321,8 @@ class IntegratePath:
             self.path = path = shapely.from_wkt(results[1])
             path_z = shapely.from_wkb(results[2])
 
-
             # create a blank image for the vertical integral
             self.integral_vert = np.zeros(( int ( (path.bounds[2] - path.bounds[0] + 2* self.vi_pad ) * self.vi_scale), int ( ( path.bounds[3] - path.bounds[1] + 2 * self.vi_pad ) * self.vi_scale ) ) )
-
 
             for lsi, linestring in enumerate(path.geoms):
 
@@ -426,14 +428,13 @@ class IntegratePath:
         if 'Prune' in self.report_type:
             remove_map = ""
         else:
-            remove_map = f"<h3>Horizontal Removal Map</h3><img src='veg{'{:02d}'.format(i)}.png'>"
-
+            remove_map = f"<h3>Horizontal Removal Map</h3><img src='veg{'{:02d}'.format(i)}.png'><br/>Volume to prune: {self.pruned_volume} m^3"
 
         with open (os.path.join(self.report_path, "report.html") , "w") as fp:
             fp.write(f"""
             <html><body>
             <h2>Vegetation {self.report_type} - A14 segment {self.seg_name}</h2>
-            {self.report_date}
+            {self.date}
             <h3>Location</h3>
             <img src="aerial.png">
             <img src="map.png">
