@@ -71,8 +71,8 @@ class IntegratePath:
         self.report_type = "Pruning"
 
         # parameters of VTE cut-profile
-        self.segment_to_road_edge = 2  # vegetation cut shape... (2 for segment 11; 1.5 for segment 14)
-        self.v_cut_move = 1 # move central trim-plane to the "left" away from the verge by this distance
+        self.segment_to_road_edge = 2  # vegetation cut shape...
+        self.v_cut_move = 3 # move central trim-plane to the "left" away from the verge by this distance
         self.slope = 0.5
 
         # these configure what happens when we run integrate_path
@@ -156,7 +156,6 @@ class IntegratePath:
 
             results = time_and_space.time_and_scenario_query_api("a14_las_chunks", location=loc_query, pg=pg2,
                                                                  api_key=self.scenario_api_key, cols=["type", "geom", "origin", "nas"], time=self.date)
-            lases = []
 
             v1 = np.array([*norm(end - start), 0])
             v2 = [*perp_vector(start, end), 0]
@@ -274,6 +273,9 @@ class IntegratePath:
         # take remaining indicies; apply as filter to original lasdata; write back as new las file
         parent_file = os.path.join(utils.nas_mount_w + utils.a14_root, self.las_write_location)
         os.makedirs(parent_file, exist_ok=True)
+
+        pruned_filename = utils.unique_file(f"{utils.nas_mount}{utils.a14_root}{self.las_write_location}", pruned_filename[:-4])[1]
+
         with laspy.open(os.path.join(parent_file, f"{pruned_filename}"), mode="w", header=lasdata.header) as writer:
             to_keep = pruned[:, 5].astype(int)
             writer.write_points(lasdata.points[to_keep])
@@ -285,13 +287,28 @@ class IntegratePath:
             print("/", end="")
             # print(f"inserting into db {pruned_filename}")
 
-            # remove any existing pruned point cloud - create new entry with existence range setup (if not already removed by previous query)
-            pg.cur.execute(
-                f"INSERT INTO {self.las_table} (geom, type, name, nas, origin, existence) "
-                f"SELECT {utils.post_geom(chunk_geom)}, 'point_cloud', '{chunk_name}', '{orig_nas_path}', {utils.post_geom(chunk_origin)}, '{{[,{self.date}]}}' "
-                f"WHERE NOT EXISTS (SELECT name FROM {self.las_table} WHERE name = '{chunk_name}' );" )
 
-            # add trimmed point cloud to the scenario database
+            # remove any existing pruned point cloud - create new entry with existence range setup (if not already removed by previous query)
+
+
+            pg.cur.execute(f" SELECT name FROM {self.las_table} WHERE name = '{chunk_name}'")
+            # if it already exists in the scenario table, we update it's date.
+            # if it doesn't (eg only in the base data), we remove it via the scenario table.
+            if pg.cur.fetchone():
+                pg.cur.execute(f"""
+                    UPDATE {self.las_table}
+                    SET existence='{{[,{self.date}]}}'
+                    WHERE name = '{chunk_name}'  
+                    """) # should really merge existence ranges...
+            else:
+                pg.cur.execute(
+                    f"INSERT INTO {self.las_table} (geom, type, name, nas, origin, existence) "
+                    f"VALUES ({utils.post_geom(chunk_geom)}, 'point_cloud', '{chunk_name}', '{orig_nas_path}', {utils.post_geom(chunk_origin)}, '{{[,{self.date}]}}') ")
+                    #f"WHERE NOT EXISTS (SELECT name FROM {self.las_table} WHERE name = '{chunk_name}' );" )
+
+            # f"SELECT {utils.post_geom(chunk_geom)}, 'point_cloud', '{chunk_name}', '{orig_nas_path}', {utils.post_geom(chunk_origin)}, '{{[,{self.date}]}}' "
+
+            # add new trimmed point cloud to the scenario database
             pg.cur.execute(
                 f"INSERT INTO {self.las_table}(geom, type, name, nas, origin, existence) "
                 f"VALUES ({utils.post_geom(chunk_geom)}, 'point_cloud', '{pruned_filename}', '{utils.a14_root}{self.las_write_location}{pruned_filename}', "

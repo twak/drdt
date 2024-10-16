@@ -57,13 +57,13 @@ def grow_trees_on( seg_name, date = "2024-10-04 17:21:34", las_table="scenario.f
             dist = random.uniform(0, sofa)
             xyz, _, perp = find_pt_at_dist ( path_z, dist, lengths, l_accum )
             xyz[2] += random.uniform(3, 6) # height
-            xyz += perp * random.gauss(2, 1)
+            xyz += perp * random.uniform(2, 6)
 
             radius = max(0.5, random.gauss(3, 1))
 
             num_pts = int ( 4 * math.pi * radius* 10000 )
             pts = np.random.uniform ( -radius, radius, ( num_pts, 3) )
-            pts = pts / np.linalg.norm(pts, axis=1).reshape(-1, 1) * radius * np.random.normal(1, 0.2, (num_pts, 1))
+            pts = pts / np.linalg.norm(pts, axis=1).reshape(-1, 1) * radius * np.random.normal(1, 0.02, (num_pts, 1))
 
             # dump points to las file
             header = laspy.LasHeader(point_format=3, version="1.2")

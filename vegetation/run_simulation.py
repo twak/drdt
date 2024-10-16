@@ -11,10 +11,8 @@ experiment="_1"
 work_dir = "/home/twak/Downloads/vege_scratch"
 report_folder=f"/home/twak/Downloads/vege_sim{experiment}"
 las_table="scenario.fred_vege_a14_las_chunks"
-
 grow_folder=f"experiment{experiment}/grown_las/"
 prune_folder=f"experiment{experiment}/pruned_las/"
-
 scenario_credentials = "fred.json"
 scenario_api_key = "f8c82b4e8156eef1c7a2f24dfd46196a"
 
@@ -57,13 +55,18 @@ def do_prune(today, id, previous_date, pruner_id):
     if random.random() < 0.2:
         return None
 
+    today = today + timedelta(hours=1)  # prune after growing
+
     prune = integrate_path.IntegratePath(id) # do the pruning
     prune.las_table = las_table
     prune.scenario_api_key = scenario_api_key
     prune.do_write_pruned_las = True
     prune.las_write_location = prune_folder
     prune.work_dir = work_dir
+    prune.date = today
     prune.go()
+
+    today = today + timedelta(hours=1)  # scan after pruning
 
     prune.do_integral_vert = prune.do_integral_horiz = True # do the report
     prune.do_write_pruned_las = False
@@ -114,6 +117,7 @@ def run_simulation (days = 10):
                 if do_inspect(today, last_inspection[inspector][0], last_inspection[inspector][1], inspector):
                     last_inspection[inspector][1] = today # inpection was complete
 
+
             # simulate the pruning
             volume.sort(key=lambda x: x[1])
             for pruner in range ( 0,random.randint(1, 2) ):
@@ -124,5 +128,48 @@ def run_simulation (days = 10):
 
 
 if __name__ == '__main__':
-    random.seed(123)
-    run_simulation()
+    # random.seed(123)
+    # run_simulation()
+
+    experiment = "_1"
+
+    work_dir = "/home/twak/Downloads/vege_scratch"
+    report_folder = f"/home/twak/Downloads/vege_sim{experiment}"
+    las_table = "scenario.fred_vege_a14_las_chunks"
+    grow_folder = f"experiment{experiment}/grown_las/"
+    prune_folder = f"experiment{experiment}/pruned_las/"
+    scenario_credentials = "fred.json"
+    scenario_api_key = "f8c82b4e8156eef1c7a2f24dfd46196a"
+
+    with Postgres(pass_file="fred.json") as pg:
+        pg.cur.execute(f"""
+            delete from {las_table}
+        """)
+
+    today = datetime.strptime('14/10/2024 09:00', '%d/%m/%Y %H:%M')
+    id = 33
+
+    print("\nGrowing trees on path#", id)
+    grow_trees.grow_trees_on(id, today, las_table=las_table, grown_route=grow_folder, trees_per_meter=0.05)
+
+    today = datetime.strptime('15/10/2024 09:00', '%d/%m/%Y %H:%M')
+
+    print("\nPruning path#", id)
+    prune = integrate_path.IntegratePath(id) # do the pruning
+    prune.las_table = las_table
+    prune.scenario_api_key = scenario_api_key
+    prune.do_write_pruned_las = True
+    prune.las_write_location = prune_folder
+    prune.work_dir = work_dir
+    prune.date = today
+    prune.go()
+
+    today = datetime.strptime('16/10/2024 09:00', '%d/%m/%Y %H:%M')
+
+    print("\nReporting path#", id)
+    prune.do_integral_vert = prune.do_integral_horiz = True # do the report
+    prune.do_write_pruned_las = False
+    prune.report_path = f"{report_folder}/{today}_prune_{id}"
+    prune.report_type = "Post-Prune Report"
+    prune.date = today
+    prune.go()
