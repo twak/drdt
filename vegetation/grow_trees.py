@@ -63,7 +63,7 @@ def grow_trees_on( seg_name, date = "2024-10-04 17:21:34", las_table="scenario.f
 
             num_pts = int ( 4 * math.pi * radius* 10000 )
             pts = np.random.uniform ( -radius, radius, ( num_pts, 3) )
-            pts = pts / np.linalg.norm(pts, axis=1).reshape(-1, 1) * radius * np.random.normal(1, 0.02, (num_pts, 1))
+            pts = pts / np.linalg.norm(pts, axis=1).reshape(-1, 1) * radius * np.random.normal(1, 0.08, (num_pts, 1))
 
             # dump points to las file
             header = laspy.LasHeader(point_format=3, version="1.2")
