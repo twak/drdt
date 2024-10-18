@@ -187,7 +187,31 @@ def find_defect():
 
     return json.dumps(out)
 
+@app.route("/v0/find-signs")
+def find_signs():
+    """
+        street signs meshes in FBX format.
 
+        call /v0/find-signs?w=598209.4&s=262475.8&e=598493.9&n=262660.5
+
+        returns [[filename, x, y, z, location-on-nas], ...]
+
+        meshes are in : /citnas/08. Researchers/tom/a14/signs
+    """
+    vals, scenario_name = utils.build_commond_state()
+
+    with utils.Postgres() as pg:
+        results = time_and_scenario_query("a14_signs", location=vals, scenario=scenario_name, cols=['origin', 'nas'], pg=pg)
+
+    if isinstance(results, str):
+        return results, 500
+
+    out = []
+    for x in results:
+        pt = x['origin']
+        out.append((x['name'], pt.x, pt.y, pt.z, x['nas']))
+
+    return json.dumps(out)
 
 @app.route("/v0/pavement")
 def find_pavement():

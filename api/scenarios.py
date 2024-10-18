@@ -10,6 +10,7 @@ import hashlib
 import uuid
 import bcrypt
 from flask import Response
+from . import app
 
 class User(flask_login.UserMixin):
     pass

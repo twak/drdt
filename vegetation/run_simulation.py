@@ -6,15 +6,14 @@ from datetime import timedelta, datetime
 import integrate_path
 import grow_trees
 
-experiment="_1"
-
-work_dir = "/home/twak/Downloads/vege_scratch"
-report_folder=f"/home/twak/Downloads/vege_sim{experiment}"
-las_table="scenario.fred_vege_a14_las_chunks"
-grow_folder=f"experiment{experiment}/grown_las/"
-prune_folder=f"experiment{experiment}/pruned_las/"
+experiment           = "_1"
+work_dir             = "/home/twak/Downloads/vege_scratch"
+report_folder        = f"/home/twak/Downloads/vege_sim{experiment}"
+las_table            = "scenario.fred_vege_a14_las_chunks"
+grow_folder          = f"experiment{experiment}/grown_las/"
+prune_folder         = f"experiment{experiment}/pruned_las/"
 scenario_credentials = "fred.json"
-scenario_api_key = "f8c82b4e8156eef1c7a2f24dfd46196a"
+scenario_api_key     = "f8c82b4e8156eef1c7a2f24dfd46196a"
 
 def random_date(start, end): #https://stackoverflow.com/questions/553303/how-to-generate-a-random-date-between-two-other-dates
 
@@ -33,7 +32,7 @@ def do_inspect(today, id, previous_date, inspector_id):
 
     global las_table, grow_folder, work_dir, scenario_credentials
     # grow_trees.grow_trees_on(id, today.strftime(utils.time_to_sql), las_table)
-    grow_trees.grow_trees_on(id, today, las_table=las_table, grown_route=grow_folder, trees_per_meter=0.01)
+    grow_trees.grow_trees_on(id, today, las_table=las_table, grown_route=grow_folder, trees_per_meter=0.02)
 
     ip = integrate_path.IntegratePath(id)
     ip.las_table = las_table
@@ -65,6 +64,7 @@ def do_prune(today, id, previous_date, pruner_id):
     prune.work_dir = work_dir
     prune.date = today
     prune.go()
+    volume = prune.pruned_volume
 
     today = today + timedelta(hours=1)  # scan after pruning
 
@@ -75,14 +75,13 @@ def do_prune(today, id, previous_date, pruner_id):
     prune.date = today
     prune.go()
 
-
-    return prune.pruned_volume
+    return volume
 
 def run_simulation (days = 10):
 
     os.makedirs(report_folder, exist_ok=True)
 
-    # reset the lidar database table
+    # reset the las chunk scenario database table
     with Postgres(pass_file="fred.json") as pg:
         pg.cur.execute(f"""
             delete from {las_table}

@@ -22,6 +22,7 @@ mesh_route = f"{a14_root}mesh_chunks"
 defect_route = f"{a14_root}mesh_defects"
 gpr_route = f"{a14_root}gpr_chunks"
 gpr_defect_route = f"{a14_root}gpr_defect_chunks"
+sign_route = f"{a14_root}signs"
 nas_mount = f"/home/twak/citnas" # read only
 nas_mount_w = f"/home/twak/citnas2" # write
 
@@ -174,10 +175,10 @@ def unique_file(location, stub, extn="las"):
     return f, name
 
 
-def post_geom(geom):
+def post_geom(geom, srid=sevenseven):
     """
     string for postgres
     """
-    return f"ST_SetSRID('{geom.wkb_hex}'::geometry, {sevenseven})"
+    return f"ST_SetSRID('{geom.wkb_hex}'::geometry, {srid})"
 
 
