@@ -105,6 +105,8 @@ def write_report(ip, i, path):
                       f"<br/>Volume to prune: { '%.2f' % ip.pruned_volume} m^3<br>"
                       f"<img src='veg{'{:02d}'.format(i)}.png'>")
 
+    las_link = "<a href='to_prune.las'>Download LAS</a><br/>" if ip.do_make_las_to_prune  else ""
+
     with open(os.path.join(ip.report_path, "report.html"), "w") as fp:
         fp.write(f"""
         <html><body>
@@ -114,6 +116,7 @@ def write_report(ip, i, path):
         <img src="aerial.png">
         <img src="map.png">
         <h3>Horizontal Density</h3>
+        {las_link}
         <img src="horiz{'{:02d}'.format(i)}.png">
         {remove_map}
         <h3>Vertical Density</h3>

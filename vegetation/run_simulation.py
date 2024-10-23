@@ -43,9 +43,10 @@ def do_inspect(today, id, previous_date, inspector_id):
     ip.work_dir = work_dir
     ip.report_type = "Inspection"
     ip.date = today
+    ip.do_make_las_to_prune = True # write out the big point cloud of the wedge...
     ip.go()
 
-    os.exit(0)
+    exit(0)
 
     return True
 

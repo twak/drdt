@@ -207,7 +207,22 @@ def post_geom(geom, srid=sevenseven):
         subprocess.run(f'cd {workdir} && pdal pipeline go.json', shell=True, executable='/bin/bash')
 
 
-def merge_las_files( name, las_files, workdir):
+def merge_las_files( name, las_files, workdir, cull=None, format="las"):
+
+
+    randomize_filter = f"""
+    {{
+        "type":"filters.randomize"
+    }},
+    """ if cull else ""
+
+    cull_filter = f"""
+    {{
+        "type":"filters.decimation",
+        "step": {cull}
+    }},
+    """ if cull else ""
+
 
     with open(os.path.join ( workdir, f"go.json"), "w") as fp:
 
@@ -219,17 +234,19 @@ def merge_las_files( name, las_files, workdir):
                 {{
                     "type": "filters.merge"
                 }},
+                {randomize_filter}
+                {cull_filter}
                 {{
-                    "type": "writers.las",
-                    "filename": "{name}.las"
+                    "type": "writers.{format}",
+                    "filename": "{name}.{format}"
                 }}
                 ]
                 ''')
 
     # this requires pdal in the current path (use conda!)
     print("pdaling merging and filtering point clouds...")
-    subprocess.run(f'cd {workdir} && pdal pipeline go.json', shell=True, executable='/bin/bash')
+    subprocess.run(f'cd "{workdir}" && pdal pipeline go.json', shell=True, executable='/bin/bash')
 
-    return f"workdir/{name}.las"
+    return f"{name}.las"
 
 

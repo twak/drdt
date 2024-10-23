@@ -78,7 +78,7 @@ class IntegratePath:
 
         # these configure what happens when we run integrate_path
         self.do_write_pruned_las = False # update the database with the pruned las files
-        self.do_classify_to_prune = False # create a las file showing the vegetation to prune as class 13
+        self.do_make_las_to_prune = False # create a las file showing the vegetation to prune as class 13
         self.do_integral_vert = False # for the report
         self.do_integral_horiz = False # for the report
 
@@ -119,7 +119,7 @@ class IntegratePath:
 
         im.save(path)
 
-    def process_wedge(self, eh, start, mid, end, i, ls, sh, seg_name):
+    def process_wedge(self, eh, start, mid, end, i, ls, sh, perp_start, perp_end):
 
         print("W", end="")
         # print(f"now processing wedge {ls}")
@@ -169,24 +169,30 @@ class IntegratePath:
                         lasdata.Y * lasdata.header.y_scale - mid[1],
                         lasdata.Z * lasdata.header.z_scale,  # height is moved to origin below
                         np.zeros((lasdata.xyz.shape[0])),  # we'll use this as padding for 4x4 rotation
-                        lasdata.classification.array,  # we'll use this for filtering out vegetation
+                        lasdata.classification.array,  # we'll use this for filtering out vegetation/cars
                         np.arange(lasdata.xyz.shape[0])  # index
                     ), axis=1)
 
+                    xyz = xyz[(xyz[:, 4] != 1)]  # no cars!
+
+                    ps = np.array ( [ perp_start[1],  -perp_start[0], 0] )
+                    pe = np.array ( [ -perp_end  [1], perp_end  [0], 0] )
+                    ps, pe = ps/np.linalg.norm(ps), pe/np.linalg.norm(pe)
+
                     # filter out points outside the wedge before any other transforms
                     l2 = length / 2
-                    for plane in [[*v1, l2], [*(-v1), l2]]:
+                    for plane in [[*ps, l2],[*pe, l2]]:
                         xyz = xyz[(xyz[:, 0] * plane[0] + xyz[:, 1] * plane[1] + xyz[:, 2] * plane[2] + plane[3]) > 0]
 
                     xyz[:, :4] = np.matmul(xyz[:, :4], rotate)  # rotation
                     xyz[:, 2] -= sh + (eh - sh) * (xyz[:, 1] + length / 2) / length  # linearly interpolate height of the length of the segment (shear transform)
 
-                    pruned_filename = f"pruned_{chunk_name[:-4]}_chunks_{seg_name}_{i}.las"
+                    pruned_filename = f"pruned_{chunk_name[:-4]}_chunks_{self.seg_name}_{i}.las"
 
                     if self.do_write_pruned_las:  # create pruned las chunks, remove old at time
                         self.create_pruned_pc(chunk_name, chunk_geom, chunk_origin, lasdata, pruned_filename, xyz)
 
-                    if self.do_integral_vert or self.do_classify_to_prune:
+                    if self.do_integral_vert or self.do_make_las_to_prune:
                         self.create_pc_with_prune_class(lasdata, pruned_filename, xyz)
 
                     if self.do_integral_horiz:  
@@ -208,24 +214,35 @@ class IntegratePath:
 
     def create_pc_with_prune_class(self, lasdata, pruned_filename, xyz, do_write=True):
 
-        # write point cloud with pruned classification
-        self.lases_with_classification.append(f"{pruned_filename}.las")
 
         to_keep = xyz[:, 5].astype(int)  # remove before start, end planes on segment (but keep pruned!)
         to_remove = xyz[
             ((xyz[:, 4] == 3) | (xyz[:, 4] == 4) | (xyz[:, 4] == 5)) &
-             (xyz[:, 0] + self.v_cut_move> 0) &
+             (xyz[:, 0] + self.v_cut_move > 0) &
             ((xyz[:, 0] - self.segment_to_road_edge) < self.slope * xyz[:, 2])]
 
-        if self.do_classify_to_prune:
+        if self.do_make_las_to_prune:
 
-            # for each index still in to_remove, set classification in laspy to 13
+            # write point cloud with pruned classification / set classification in laspy to 13 for to-prune-points
             lasdata.classification[to_remove[:, 5].astype(int)] = 13
+            parent_file = utils.unique_file(self.work_dir, "highlight_"+pruned_filename[:-4] )[0]
+            self.lases_with_classification.append(parent_file)
 
-            parent_file = utils.unique_file(self.las_write_location)
-            os.makedirs(parent_file, exist_ok=True)
-            with laspy.open(parent_file, mode="w", header=lasdata.header) as writer:
-                writer.write_points(lasdata.points[to_keep])
+            header = laspy.LasHeader(point_format=3, version="1.2") # ensure the cloud is in the same format as the grown trees...
+            header.offsets = lasdata.header.offsets
+            header.scales = lasdata.header.scales
+            las = laspy.LasData(header)
+            las.xyz = lasdata.xyz[to_keep]
+            las.red = lasdata.red[to_keep]
+            las.green = lasdata.green[to_keep]
+            las.blue = lasdata.blue[to_keep]
+            las.classification = lasdata.classification[to_keep]
+
+            las.write(parent_file)
+
+            # with laspy.open(parent_file, mode="w", header=lasdata.header) as writer:
+            #     o = lasdata.points[to_keep]
+            #     writer.write_points(lasdata.points[to_keep])
 
         # overhead view of the pruned vegetation
         if self.do_integral_vert:
@@ -362,11 +379,21 @@ class IntegratePath:
                     self.volume_integral = np.zeros(( int ( 10 / self.volume_res), int ( path_z.length * 1.1 / self.volume_res), int ( 20 / self.volume_res ) ) )
                     self.volume_origin = np.array([-self.v_cut_move, -np.linalg.norm(end - start) * 0.55, -1])
 
-                    self.process_wedge(eh, start, mid, end, i, ls, sh, self.seg_name)
+                    self.process_wedge(eh, start, mid, end, i, ls, sh, perp_start, perp_end)
 
                     volume += np.count_nonzero(self.volume_integral) * self.volume_res ** 3
 
+
                 self.pruned_volume = volume
+
+                if self.do_make_las_to_prune:
+                    print("\nwriting point cloud")
+                    utils.merge_las_files("to_prune", self.lases_with_classification, self.report_path) # , cull=10, format="ply"
+                    for f in self.lases_with_classification:
+                        os.remove(f)
+
+
+
                 report.write_report(self, i, path)
 
 

@@ -56,8 +56,9 @@ def grow_trees_on( seg_name, date = "2024-10-04 17:21:34", las_table="scenario.f
 
             dist = random.uniform(0, sofa)
             xyz, _, perp = find_pt_at_dist ( path_z, dist, lengths, l_accum )
-            xyz[2] += random.uniform(3, 6) # height
-            xyz += perp * random.uniform(2, 6)
+            ho = random.uniform(3, 6)
+            xyz[2] += ho # height
+            xyz += perp * (random.uniform(1, 4) + ho * 0.3)
 
             radius = max(0.5, random.gauss(3, 1))
 
@@ -71,10 +72,12 @@ def grow_trees_on( seg_name, date = "2024-10-04 17:21:34", las_table="scenario.f
             header.scales = np.array([0.01, 0.01, 0.01]) # las units are in cm
             las = laspy.LasData(header)
             las.xyz = (xyz + pts)
+            big = 2**16 -1
             las.red = np.zeros(len(las.points), dtype=np.uint16)
-            las.green = np.zeros(len(las.points), dtype=np.uint16)
             las.blue = np.zeros(len(las.points), dtype=np.uint16)
-            las.green = np.random.uniform(0, 255, len(las.points))
+            las.red   = (np.random.uniform(0.2, 0.5, len(las.points)) * big).astype(np.uint16)
+            las.green = (np.random.uniform(0.3, 0.4, len(las.points)) * big).astype(np.uint16)
+            las.blue  = (np.random.uniform(0.1, 0.2, len(las.points)) * big).astype(np.uint16)
             las.classification = np.zeros(len(las.points), dtype=np.uint8) + 5 # high vegetation
 
             location = f"{utils.nas_mount_w}{utils.a14_root}{grown_route}"
