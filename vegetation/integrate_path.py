@@ -13,6 +13,7 @@ import laspy
 from PIL import Image, ImageEnhance, ImageDraw
 from shapely import wkb, wkt
 from api import time_and_space
+from vegetation import report
 
 """
 Given a linestring ( a road segment ) we, for each line therin, and compute a wedge shape around it. 
@@ -81,16 +82,14 @@ class IntegratePath:
         self.do_integral_vert = False # for the report
         self.do_integral_horiz = False # for the report
 
-        # visualisation state + parameters
-        self.veg_horiz_integral = np.zeros((200, 1000))
-        self.to_prune_horiz_integral = np.zeros((200, 1000))
-        self.integral_vert = None
         # self.path = None # path we're working on
         self.vi_scale = 1 # scale of the vertical integral image
         self.vi_pad = 200  # meters expansion beyond path for vertical integral
 
         # used when we want to create a point cloud of a segment (work in progress)
         self.lases_with_classification = []
+        self.integral_vert = None
+        self.volume_res = 0.1
 
         # output
         self.pruned_volume = -1
@@ -119,29 +118,6 @@ class IntegratePath:
         im = Image.fromarray(r.astype(np.uint8))
 
         im.save(path)
-
-    def do_pdal(self, name, las_files, workdir):
-
-        with open(os.path.join ( workdir, f"go.json"), "w") as fp:
-
-            fp.write("[\n")
-            for f in las_files:
-                fp.write(  f'"{f}", \n')
-
-            fp.write(f'''
-                    {{
-                        "type": "filters.merge"
-                    }},
-                    {{
-                        "type": "writers.las",
-                        "filename": "{name}.las"
-                    }}
-                    ]
-                    ''')
-
-        # this requires pdal in the current path (use conda!)
-        print("pdaling merging and filtering point clouds...")
-        subprocess.run(f'cd {workdir} && pdal pipeline go.json', shell=True, executable='/bin/bash')
 
     def process_wedge(self, eh, start, mid, end, i, ls, sh, seg_name):
 
@@ -225,8 +201,10 @@ class IntegratePath:
         veg_togo = xyz[
             (xyz[:, 0] + self.v_cut_move > 0) &  # vertical plane in center of road
             ((xyz[:, 0] - self.segment_to_road_edge) < self.slope * xyz[:, 2])]  # sloped line at 'edge' of road.
-        self.to_prune_horiz_integral += \
-        np.histogram2d(veg_togo[:, 2], veg_togo[:, 0], bins=(200, 1000), range=[[-1, 19], [-50, 50]], density=False)[0]
+        self.to_prune_horiz_integral += np.histogram2d(veg_togo[:, 2], veg_togo[:, 0], bins=(200, 1000), range=[[-1, 19], [-50, 50]], density=False)[0]
+
+        if len (veg_togo) > 0:
+            self.estimate_volume ( veg_togo )
 
     def create_pc_with_prune_class(self, lasdata, pruned_filename, xyz, do_write=True):
 
@@ -244,7 +222,7 @@ class IntegratePath:
             # for each index still in to_remove, set classification in laspy to 13
             lasdata.classification[to_remove[:, 5].astype(int)] = 13
 
-            parent_file = utils.unique_file(f"{utils.nas_mount_w}{utils.a14_root}vege_pruned_las/", self.las_write_location)
+            parent_file = utils.unique_file(self.las_write_location)
             os.makedirs(parent_file, exist_ok=True)
             with laspy.open(parent_file, mode="w", header=lasdata.header) as writer:
                 writer.write_points(lasdata.points[to_keep])
@@ -314,11 +292,22 @@ class IntegratePath:
                 f"VALUES ({utils.post_geom(chunk_geom)}, 'point_cloud', '{pruned_filename}', '{utils.a14_root}{self.las_write_location}{pruned_filename}', "
                 f"{utils.post_geom(chunk_origin)}, '{{[{self.date},]}}' )" )
 
+    def estimate_volume(self, veg_togo):
+
+        # count occupied voxels
+        o, v = self.volume_origin, self.volume_integral
+        res = self.volume_res
+
+        range = [[o[0], o[0] + v.shape[0]*res],
+                 [o[1], o[1] + v.shape[1]*res],
+                 [o[2], o[2] + v.shape[2]*res] ]
+
+        self.volume_integral += np.histogramdd(veg_togo[:, :3], bins=[v.shape[0], v.shape[1], v.shape[2]], range=range, density=False)[0]
+
 
     def go(self):
 
         # print("Integrating path: ", self.seg_name)
-
         workdir = Path(self.work_dir)
         os.makedirs(workdir, exist_ok=True)
 
@@ -340,6 +329,9 @@ class IntegratePath:
 
             # create a blank image for the vertical integral
             self.integral_vert = np.zeros(( int ( (path.bounds[2] - path.bounds[0] + 2* self.vi_pad ) * self.vi_scale), int ( ( path.bounds[3] - path.bounds[1] + 2 * self.vi_pad ) * self.vi_scale ) ) )
+            self.veg_horiz_integral = np.zeros((200, 1000))
+            self.to_prune_horiz_integral = np.zeros((200, 1000))
+            volume = 0
 
             for lsi, linestring in enumerate(path.geoms):
 
@@ -366,102 +358,16 @@ class IntegratePath:
                     boundary = [ a, b, c ,d ]
                     ls = Polygon(boundary)
 
+                    # create a volume integral for each wedge
+                    self.volume_integral = np.zeros(( int ( 10 / self.volume_res), int ( path_z.length * 1.1 / self.volume_res), int ( 20 / self.volume_res ) ) )
+                    self.volume_origin = np.array([-self.v_cut_move, -np.linalg.norm(end - start) * 0.55, -1])
+
                     self.process_wedge(eh, start, mid, end, i, ls, sh, self.seg_name)
 
-                self.write_report(i, path)
+                    volume += np.count_nonzero(self.volume_integral) * self.volume_res ** 3
 
-    def write_report(self, i, path):
-
-        if self.report_path:
-            os.makedirs(self.report_path, exist_ok=True)
-
-        # vertical integral - overlay on OS aerial
-        aerial_path = os.path.join(self.report_path, "aerial.png")
-
-        magma = Image.open(os.path.join(Path(__file__).parent, "magma_orig.png"))
-        magma = np.asarray(magma)
-        magma = magma[:, :, :3]
-
-        urllib.request.urlretrieve(  # background for vertical image
-            f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
-            f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_aerial&exceptions=application%2Fvnd.ogc.se_inimage&"
-            f"SRS=EPSG%3A27700&WIDTH={self.integral_vert.shape[0]}&HEIGHT={self.integral_vert.shape[1]}"
-            f"&BBOX={path.bounds[0] - self.vi_pad}%2C{path.bounds[1] - self.vi_pad}%2C{path.bounds[2] + self.vi_pad}%2C{path.bounds[3] + self.vi_pad}",
-            aerial_path)
-
-
-        # vertical integral - overlay on OS aerial
-        map_path = os.path.join(self.report_path, "map.png")
-
-        urllib.request.urlretrieve(  # background for vertical image
-            f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
-            f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_OS&exceptions=application%2Fvnd.ogc.se_inimage&"
-            f"SRS=EPSG%3A27700&WIDTH={self.integral_vert.shape[0]}&HEIGHT={self.integral_vert.shape[1]}"
-            f"&BBOX={path.bounds[0] - self.vi_pad}%2C{path.bounds[1] - self.vi_pad}%2C{path.bounds[2] + self.vi_pad}%2C{path.bounds[3] + self.vi_pad}",
-            map_path)
-
-
-        imA = Image.open(aerial_path)
-        imB = Image.open(map_path)
-
-        for p in path.geoms:
-            for i in range(len(p.coords) - 1):
-                a = p.coords[i]
-                b = p.coords[i + 1]
-                a = ((a[0] - path.bounds[0] + self.vi_pad) * self.vi_scale, imA.height - (a[1] - path.bounds[1] + self.vi_pad) * self.vi_scale)
-                b = ((b[0] - path.bounds[0] + self.vi_pad) * self.vi_scale, imA.height - (b[1] - path.bounds[1] + self.vi_pad) * self.vi_scale)
-                for im in [imA, imB]:
-                    ImageDraw.Draw(im).line([a, b], fill=(255, 166, 0), width=5)
-
-        imA.save(aerial_path)
-        imB.save(map_path)
-
-        if self.do_integral_horiz:  # horizontal density integral
-            for name, array in [("veg", self.to_prune_horiz_integral), ("horiz", self.veg_horiz_integral)]:
-                cutoff = max(0.01, np.percentile(array, 99.5))
-                r = magma[1][(np.minimum(magma.shape[1] - 1, array * magma.shape[1] / cutoff)).astype(np.int32)]
-
-                r = np.flip(r, axis=0)  # upside down
-                im = Image.fromarray(r.astype(np.uint8))
-                im.save(os.path.join(self.report_path, f"{name}{'{:02d}'.format(i)}.png"))
-
-        if self.do_integral_vert:  # vertical density integral
-            cutoff = max(self.integral_vert.max() * 0.75, 1)
-            r = 255 - (self.integral_vert * 255 / cutoff)
-            r = r.transpose()
-            r = np.flip(r, axis=0)  # upside down
-            o = np.zeros((r.shape[0], r.shape[1], 4), dtype=np.uint8)
-            o[:, :, 3] = 255 - r  # density = transparency
-            o[:, :, :3] = [255, 120, 255]  # purple!
-            im = Image.fromarray(o.clip(0, 255))
-
-            bg = Image.open(aerial_path).convert("RGBA")
-            bg = ImageEnhance.Brightness(bg).enhance(0.3)
-            bg.paste(im, (0, 0), im)
-            # override alpha
-            bg.putalpha(255)
-            bg.save(os.path.join(self.report_path, f"vert{'{:02d}'.format(i)}.png"))
-
-        if 'Prune' in self.report_type:
-            remove_map = ""
-        else:
-            remove_map = f"<h3>Horizontal Removal Map</h3><img src='veg{'{:02d}'.format(i)}.png'><br/>Volume to prune: {self.pruned_volume} m^3"
-
-        with open (os.path.join(self.report_path, "report.html") , "w") as fp:
-            fp.write(f"""
-            <html><body>
-            <h2>Vegetation {self.report_type} - A14 segment {self.seg_name}</h2>
-            {self.date}
-            <h3>Location</h3>
-            <img src="aerial.png">
-            <img src="map.png">
-            <h3>Horizontal Density</h3>
-            <img src="horiz{'{:02d}'.format(i)}.png">
-            {remove_map}
-            <h3>Vertical Density</h3>
-            <img src="vert{'{:02d}'.format(i)}.png">
-            </body></html>
-            """)
+                self.pruned_volume = volume
+                report.write_report(self, i, path)
 
 
 if __name__ == '__main__':

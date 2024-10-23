@@ -45,6 +45,8 @@ def do_inspect(today, id, previous_date, inspector_id):
     ip.date = today
     ip.go()
 
+    os.exit(0)
+
     return True
 
 def do_prune(today, id, previous_date, pruner_id):
@@ -59,6 +61,7 @@ def do_prune(today, id, previous_date, pruner_id):
     prune = integrate_path.IntegratePath(id) # do the pruning
     prune.las_table = las_table
     prune.scenario_api_key = scenario_api_key
+    prune.scenario_credentials = scenario_credentials
     prune.do_write_pruned_las = True
     prune.las_write_location = prune_folder
     prune.work_dir = work_dir

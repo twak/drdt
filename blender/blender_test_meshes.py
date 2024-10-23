@@ -13,7 +13,7 @@ This script is run inside blender, and will stream the meshes as you move the ti
 
 def load_for(x, y, pad=30, chunk_size=10):
 
-    origin = [598263, 262637] # 27700
+    origin = [598458.0, 262469.5] # 27700
 
     global runs
     runs += 1
@@ -95,5 +95,5 @@ if __name__ == '__main__':
         on_depsgraph_update.operator = None
         bpy.app.handlers.depsgraph_update_post.append(on_depsgraph_update)
     else: # bulk load
-        load_for(0, 0, pad=140, chunk_size=10)
-        load_for(0, 0, pad=15000, chunk_size=50)
+        load_for(0, 0, pad=100, chunk_size=10)
+#        load_for(0, 0, pad=15000, chunk_size=50)

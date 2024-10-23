@@ -4,6 +4,7 @@ import math
 import laspy
 from flask import request
 import os
+import subprocess
 
 """
 non-Flask utils
@@ -180,5 +181,55 @@ def post_geom(geom, srid=sevenseven):
     string for postgres
     """
     return f"ST_SetSRID('{geom.wkb_hex}'::geometry, {srid})"
+
+
+    def do_pdal(self, name, las_files, workdir):
+
+        with open(os.path.join ( workdir, f"go.json"), "w") as fp:
+
+            fp.write("[\n")
+            for f in las_files:
+                fp.write(  f'"{f}", \n')
+
+            fp.write(f'''
+                    {{
+                        "type": "filters.merge"
+                    }},
+                    {{
+                        "type": "writers.las",
+                        "filename": "{name}.las"
+                    }}
+                    ]
+                    ''')
+
+        # this requires pdal in the current path (use conda!)
+        print("pdaling merging and filtering point clouds...")
+        subprocess.run(f'cd {workdir} && pdal pipeline go.json', shell=True, executable='/bin/bash')
+
+
+def merge_las_files( name, las_files, workdir):
+
+    with open(os.path.join ( workdir, f"go.json"), "w") as fp:
+
+        fp.write("[\n")
+        for f in las_files:
+            fp.write(  f'"{f}", \n')
+
+        fp.write(f'''
+                {{
+                    "type": "filters.merge"
+                }},
+                {{
+                    "type": "writers.las",
+                    "filename": "{name}.las"
+                }}
+                ]
+                ''')
+
+    # this requires pdal in the current path (use conda!)
+    print("pdaling merging and filtering point clouds...")
+    subprocess.run(f'cd {workdir} && pdal pipeline go.json', shell=True, executable='/bin/bash')
+
+    return f"workdir/{name}.las"
 
 
