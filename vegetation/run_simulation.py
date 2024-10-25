@@ -31,7 +31,7 @@ def do_inspect(today, id, previous_date, inspector_id):
     # grow_trees.grow_trees_on(id, today.strftime(utils.time_to_sql), las_table)
     grow_trees.grow_trees_on(id, today, las_table=las_table, grown_route=grow_folder, trees_per_meter=0.02)
 
-    ip = integrate_path.IntegratePath(20)
+    ip = integrate_path.IntegratePath(id)
     ip.las_table = las_table
     ip.scenario_credentials = scenario_credentials
     ip.scenario_api_key = scenario_api_key
