@@ -1,3 +1,4 @@
+import random
 import urllib
 
 import api.utils as utils
@@ -81,6 +82,7 @@ class IntegratePath:
         self.do_make_las_to_prune = False # create a las file showing the vegetation to prune as class 13
         self.do_integral_vert = False # for the report
         self.do_integral_horiz = False # for the report
+        self.do_write_wedge_geom = False # write the wedge geometry to the database
 
         # self.path = None # path we're working on
         self.vi_scale = 1 # scale of the vertical integral image
@@ -119,84 +121,99 @@ class IntegratePath:
 
         im.save(path)
 
-    def process_wedge(self, eh, start, mid, end, i, ls, sh, perp_start, perp_end):
+    def process_wedge(self, eh, start, mid, end, i, ls, sh, perp_start, perp_end, seg_name):
 
         print("W", end="")
         # print(f"now processing wedge {ls}")
         # global veg_horiz_integral, to_prune_horiz_integral
 
-        with Postgres() as pg2:
+        if True:
+            with Postgres() as pg2:
 
-            def loc_query(ch):
-                return f" AND ST_DWithin({ch}.geom, ST_SetSRID('{ls.wkb_hex}'::geometry, {utils.sevenseven} ), 10)"
+                def loc_query(ch):
+                    return f" AND ST_DWithin({ch}.geom, ST_SetSRID('{ls.wkb_hex}'::geometry, {utils.sevenseven} ), 10)"
 
-            results = time_and_space.time_and_scenario_query_api("a14_las_chunks", location=loc_query, pg=pg2,
-                                                                 api_key=self.scenario_api_key, cols=["type", "geom", "origin", "nas"], time=self.date)
+                results = time_and_space.time_and_scenario_query_api("a14_las_chunks", location=loc_query, pg=pg2,
+                                                                     api_key=self.scenario_api_key, cols=["type", "geom", "origin", "nas"], time=self.date)
 
-            v1 = np.array([*norm(end - start), 0])
-            v2 = [*perp_vector(start, end), 0]
-            v3 = np.array([0, 0, 1])
+                v1 = np.array([*norm(end - start), 0])
+                v2 = [*perp_vector(start, end), 0]
+                v3 = np.array([0, 0, 1])
 
-            # rotate cloud to lie along y axes
-            rotate = np.array([[v2[0], v1[0], v3[0], 0],
-                               [v2[1], v1[1], v3[1], 0],
-                               [v2[2], v1[2], v3[2], 0],
-                               [0, 0, 0, 1]])
+                # rotate cloud to lie along y axes
+                rotate = np.array([[v2[0], v1[0], v3[0], 0],
+                                   [v2[1], v1[1], v3[1], 0],
+                                   [v2[2], v1[2], v3[2], 0],
+                                   [0, 0, 0, 1]])
 
-            length = np.linalg.norm(end - start)
+                length = np.linalg.norm(end - start)
 
-            for b in results:
+                for b in results:
 
-                chunk_name = b["name"]
-                chunk_nas = b["nas"]
-                chunk_geom = b["geom"]
-                chunk_origin = b["origin"]
+                    chunk_name = b["name"]
+                    chunk_nas = b["nas"]
+                    chunk_geom = b["geom"]
+                    chunk_origin = b["origin"]
 
-                print(".", end="")
-                # print("processing las chunk", chunk_name)
-                dest = os.path.join(self.work_dir, chunk_name)
+                    print(".", end="")
+                    # print("processing las chunk", chunk_name)
+                    dest = os.path.join(self.work_dir, chunk_name)
 
-                if not os.path.exists(dest):
-                    print("\\", end="")
-                    # print(f"  downloading {chunk_name}...")
-                    shutil.copy(utils.nas_mount+chunk_nas, dest)
+                    if not os.path.exists(dest):
+                        print("\\", end="")
+                        # print(f"  downloading {chunk_name}...")
+                        shutil.copy(utils.nas_mount+chunk_nas, dest)
 
-                with laspy.open(dest) as fh:
-                    lasdata = fh.read()
+                    with laspy.open(dest) as fh:
+                        lasdata = fh.read()
 
-                    xyz = np.stack((
-                        lasdata.X * lasdata.header.x_scale - mid[0],  # move x, y to origin
-                        lasdata.Y * lasdata.header.y_scale - mid[1],
-                        lasdata.Z * lasdata.header.z_scale,  # height is moved to origin below
-                        np.zeros((lasdata.xyz.shape[0])),  # we'll use this as padding for 4x4 rotation
-                        lasdata.classification.array,  # we'll use this for filtering out vegetation/cars
-                        np.arange(lasdata.xyz.shape[0])  # index
-                    ), axis=1)
+                        xyz = np.stack((
+                            lasdata.X * lasdata.header.x_scale - mid[0],  # move x, y to origin
+                            lasdata.Y * lasdata.header.y_scale - mid[1],
+                            lasdata.Z * lasdata.header.z_scale,  # height is moved to origin below
+                            np.zeros((lasdata.xyz.shape[0])),  # we'll use this as padding for 4x4 rotation
+                            lasdata.classification.array,  # we'll use this for filtering out vegetation/cars
+                            np.arange(lasdata.xyz.shape[0])  # index
+                        ), axis=1)
 
-                    xyz = xyz[(xyz[:, 4] != 1)]  # no cars!
+                        xyz = xyz[(xyz[:, 4] != 1) & (xyz[:, 4] != 9)]  # no cars, overhead wires
 
-                    ps = np.array ( [ perp_start[1],  -perp_start[0], 0] )
-                    pe = np.array ( [ -perp_end  [1], perp_end  [0], 0] )
-                    ps, pe = ps/np.linalg.norm(ps), pe/np.linalg.norm(pe)
+                        ps = np.array ( [ perp_start[1],  -perp_start[0], 0] )
+                        pe = np.array ( [ -perp_end  [1], perp_end  [0], 0] )
+                        ps, pe = ps/np.linalg.norm(ps), pe/np.linalg.norm(pe)
 
-                    # filter out points outside the wedge before any other transforms
-                    l2 = length / 2
-                    for plane in [[*ps, l2],[*pe, l2]]:
-                        xyz = xyz[(xyz[:, 0] * plane[0] + xyz[:, 1] * plane[1] + xyz[:, 2] * plane[2] + plane[3]) > 0]
+                        # filter out points outside the wedge before any other transforms
+                        l2 = length / 2
+                        for plane in [[*ps, l2],[*pe, l2]]:
+                            xyz = xyz[(xyz[:, 0] * plane[0] + xyz[:, 1] * plane[1] + xyz[:, 2] * plane[2] + plane[3]) > 0]
 
-                    xyz[:, :4] = np.matmul(xyz[:, :4], rotate)  # rotation
-                    xyz[:, 2] -= sh + (eh - sh) * (xyz[:, 1] + length / 2) / length  # linearly interpolate height of the length of the segment (shear transform)
+                        xyz[:, :4] = np.matmul(xyz[:, :4], rotate)  # rotation
+                        xyz[:, 2] -= sh + (eh - sh) * (xyz[:, 1] + length / 2) / length  # linearly interpolate height of the length of the segment (shear transform)
 
-                    pruned_filename = f"pruned_{chunk_name[:-4]}_chunks_{self.seg_name}_{i}.las"
+                        pruned_filename = f"pruned_{chunk_name[:-4]}_chunks_{self.seg_name}_{i}.las"
 
-                    if self.do_write_pruned_las:  # create pruned las chunks, remove old at time
-                        self.create_pruned_pc(chunk_name, chunk_geom, chunk_origin, lasdata, pruned_filename, xyz)
+                        if self.do_write_pruned_las:  # create pruned las chunks, remove old at time
+                            self.create_pruned_pc(chunk_name, chunk_geom, chunk_origin, lasdata, pruned_filename, xyz)
 
-                    if self.do_integral_vert or self.do_make_las_to_prune:
-                        self.create_pc_with_prune_class(lasdata, pruned_filename, xyz)
+                        if self.do_integral_vert or self.do_make_las_to_prune:
+                            self.create_pc_with_prune_class(lasdata, pruned_filename, xyz)
 
-                    if self.do_integral_horiz:  
-                        self.integrate_horiz(xyz, mid)
+                        if self.do_integral_horiz:
+                            self.integrate_horiz(xyz, mid)
+
+        if self.do_write_wedge_geom:
+            self.write_wedge_geom(str(i), seg_name, ls, start, end)
+
+    def write_wedge_geom(self, name, seg_name, geom, start, end):
+
+            if start[0] > end[0]:
+                return # one direction only pls.
+
+            with Postgres(pass_file="pwd_rw.json") as pg:
+                pg.cur.execute(f"""
+                    INSERT INTO public.tmp_wedges (name, seg, geom)  
+                    VALUES ('{seg_name}_{name}', '{seg_name}', {utils.post_geom(geom,utils.sevenseven) });
+                        """)
 
     def integrate_horiz(self, xyz, mid):
 
@@ -331,74 +348,79 @@ class IntegratePath:
         with (Postgres() as pg):
             pg.cur.execute(f"""
                 SELECT  id, ST_AsText(geom), geom_z,  "Section_La", "Section_St", "Section_En", "Length", "Start_Date", "End_Date", "Section_Fu", "Road_Numbe", "Road_Name", "Road_Class", "Single_or_"               
-                FROM {self.segment_table} WHERE id = '{self.seg_name}' 
-                """ )
+                FROM {self.segment_table} 
+                """ ) # WHERE id = '{self.seg_name}'
 
-            results = pg.cur.fetchone()
-            if results[2] == None:
-                print("No height info for this segment! run sample_height...")
-                return
+            for results in pg.cur.fetchall():
 
-            # global integral_vert, vi_scale, vi_pad, path
+                # results = pg.cur.fetchone()
+                if results[2] == None:
+                    print("No height info for this segment! run sample_height...")
+                    return
 
-            self.path = path = shapely.from_wkt(results[1])
-            path_z = shapely.from_wkb(results[2])
+                # global integral_vert, vi_scale, vi_pad, path
 
-            # create a blank image for the vertical integral
-            self.integral_vert = np.zeros(( int ( (path.bounds[2] - path.bounds[0] + 2* self.vi_pad ) * self.vi_scale), int ( ( path.bounds[3] - path.bounds[1] + 2 * self.vi_pad ) * self.vi_scale ) ) )
-            self.veg_horiz_integral = np.zeros((200, 1000))
-            self.to_prune_horiz_integral = np.zeros((200, 1000))
-            volume = 0
+                self.path = path = shapely.from_wkt(results[1])
+                path_z = shapely.from_wkb(results[2])
 
-            for lsi, linestring in enumerate(path.geoms):
+                # create a blank image for the vertical integral
+                self.integral_vert = np.zeros(( int ( (path.bounds[2] - path.bounds[0] + 2* self.vi_pad ) * self.vi_scale), int ( ( path.bounds[3] - path.bounds[1] + 2 * self.vi_pad ) * self.vi_scale ) ) )
+                self.veg_horiz_integral = np.zeros((200, 1000))
+                self.to_prune_horiz_integral = np.zeros((200, 1000))
+                volume = 0
 
-                extent = 100 # how far does the wedge extend from the segment
-                # for each line segment, create an envelope. we expect a single linestring per geometry.
-                for i in range (len(linestring.coords)-1):
+                for lsi, linestring in enumerate(path.geoms):
 
-                    # print (f"processing segment {i} of {len(linestring.coords)-1}")
+                    extent = 100 # how far does the wedge extend from the segment
+                    # for each line segment, create an envelope. we expect a single linestring per geometry.
+                    for i in range (len(linestring.coords)-1):
 
-                    start =  np.array(linestring.coords[i])
-                    end =  np.array(linestring.coords[i+1])
-                    sh = path_z.coords[i][2]
-                    eh = path_z.coords[i+1][2]
+                        # self.lases_with_classification = []
 
-                    mid = (start + end) / 2
+                        # print (f"processing segment {i} of {len(linestring.coords)-1}")
 
-                    perp_start = perp_vector_triple(linestring.coords, i) * extent
-                    perp_end = perp_vector_triple(linestring.coords, i+1) * extent
+                        start =  np.array(linestring.coords[i])
+                        end =  np.array(linestring.coords[i+1])
+                        sh = path_z.coords[i][2]
+                        eh = path_z.coords[i+1][2]
 
-                    a = start + perp_start
-                    b = end + perp_end
-                    c = end - perp_end
-                    d = start - perp_start
-                    boundary = [ a, b, c ,d ]
-                    ls = Polygon(boundary)
+                        mid = (start + end) / 2
 
-                    # create a volume integral for each wedge
-                    self.volume_integral = np.zeros(( int ( 10 / self.volume_res), int ( path_z.length * 1.1 / self.volume_res), int ( 20 / self.volume_res ) ) )
-                    self.volume_origin = np.array([-self.v_cut_move, -np.linalg.norm(end - start) * 0.55, -1])
+                        perp_start = perp_vector_triple(linestring.coords, i) * extent
+                        perp_end = perp_vector_triple(linestring.coords, i+1) * extent
 
-                    self.process_wedge(eh, start, mid, end, i, ls, sh, perp_start, perp_end)
+                        a = start + perp_start
+                        b = end + perp_end
+                        c = end - perp_end
+                        d = start - perp_start
+                        boundary = [ a, b, c ,d ]
+                        ls = Polygon(boundary)
 
-                    volume += np.count_nonzero(self.volume_integral) * self.volume_res ** 3
+                        # create a volume integral for each wedge
+                        self.volume_integral = np.zeros(( int ( 10 / self.volume_res), int ( path_z.length * 1.1 / self.volume_res), int ( 20 / self.volume_res ) ) )
+                        self.volume_origin = np.array([-self.v_cut_move, -np.linalg.norm(end - start) * 0.55, -1])
 
+                        self.process_wedge(eh, start, mid, end, i, ls, sh, perp_start, perp_end, results[0])
 
-                self.pruned_volume = volume
+                        volume += np.count_nonzero(self.volume_integral) * self.volume_res ** 3
 
-                if self.do_make_las_to_prune:
-                    print("\nwriting point cloud")
-                    utils.merge_las_files("to_prune", self.lases_with_classification, self.report_path) # , cull=10, format="ply"
-                    for f in self.lases_with_classification:
-                        os.remove(f)
+            if self.do_make_las_to_prune:
+                print("\nwriting point cloud")
+                utils.merge_las_files(f"to_prune_{i}", self.lases_with_classification, self.report_path )#, cull=10, format="ply" )
+                for f in self.lases_with_classification:
+                    os.remove(f)
 
-
-
-                report.write_report(self, i, path)
+            self.pruned_volume = volume
+            report.write_report(self, i, path)
 
 
 if __name__ == '__main__':
-    ip = IntegratePath
-    ip.segment = "11"
-    ip.do_integral_vert = ip.do_integral_horiz = True
+
+    with Postgres(pass_file="pwd_rw.json") as pg:
+        pg.cur.execute("DELETE FROM public.tmp_wedges")
+
+    ip = IntegratePath(11)
+    ip.do_write_wedge_geom = True
+    # ip.segment = "11"
+    # ip.do_integral_vert = ip.do_integral_horiz = True
     ip.go()
