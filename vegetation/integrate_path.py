@@ -161,7 +161,6 @@ class IntegratePath:
 
                     if not os.path.exists(dest):
                         print("\\", end="")
-                        # print(f"  downloading {chunk_name}...")
                         shutil.copy(utils.nas_mount+chunk_nas, dest)
 
                     with laspy.open(dest) as fh:
@@ -275,7 +274,7 @@ class IntegratePath:
                       (xyz[:, 0] + self.v_cut_move < 0) |  # before vertical plane in center of road
                      ((xyz[:, 0] - self.segment_to_road_edge) > self.slope * xyz[:, 2])]  # after sloped line at 'edge' of road.
 
-        self.pruned_volume = (xyz.shape[0] - pruned.shape[0] ) // 1000 # approx
+        # self.pruned_volume = (xyz.shape[0] - pruned.shape[0] ) // 1000 # approx
 
         if len (pruned) == len (xyz):
             print("x", end="")
@@ -347,9 +346,11 @@ class IntegratePath:
 
         with (Postgres() as pg):
             pg.cur.execute(f"""
-                SELECT  id, ST_AsText(geom), geom_z,  "Section_La", "Section_St", "Section_En", "Length", "Start_Date", "End_Date", "Section_Fu", "Road_Numbe", "Road_Name", "Road_Class", "Single_or_"               
-                FROM {self.segment_table} 
-                """ ) # WHERE id = '{self.seg_name}'
+                SELECT  id, ST_AsText(geom), geom_z,  "Section_La", "Section_St", "Section_En",
+                "Length", "Start_Date", "End_Date", "Section_Fu", "Road_Numbe", "Road_Name", "Road_Class", "Single_or_"               
+                FROM {self.segment_table}
+                WHERE id = '{self.seg_name}' 
+                """ )
 
             for results in pg.cur.fetchall():
 

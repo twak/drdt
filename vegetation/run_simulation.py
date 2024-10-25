@@ -27,9 +27,6 @@ def do_inspect(today, id, previous_date, inspector_id):
 
     print(f"\n\n ** inspecting {id}")
 
-    if random.random() < 0.2:
-        return False
-
     global las_table, grow_folder, work_dir, scenario_credentials
     # grow_trees.grow_trees_on(id, today.strftime(utils.time_to_sql), las_table)
     grow_trees.grow_trees_on(id, today, las_table=las_table, grown_route=grow_folder, trees_per_meter=0.02)
@@ -46,16 +43,11 @@ def do_inspect(today, id, previous_date, inspector_id):
     ip.do_make_las_to_prune = True # write out the big point cloud of the wedge...
     ip.go()
 
-    exit(0)
-
-    return True
+    return ip.pruned_volume
 
 def do_prune(today, id, previous_date, pruner_id):
 
     print(f"\n\n ** pruning {id}")
-
-    if random.random() < 0.2:
-        return None
 
     today = today + timedelta(hours=1)  # prune after growing
 
@@ -79,7 +71,7 @@ def do_prune(today, id, previous_date, pruner_id):
     prune.date = today
     prune.go()
 
-    return volume
+    return True #volume
 
 def run_simulation (days = 10):
 
@@ -117,8 +109,11 @@ def run_simulation (days = 10):
             # simulate the inspection
             last_inspection.sort(key=lambda x: x[1])
             for inspector in range(0,random.randint(0, 5) ):
-                if do_inspect(today, last_inspection[inspector][0], last_inspection[inspector][1], inspector):
-                    last_inspection[inspector][1] = today # inpection was complete
+                v = do_inspect(today, last_inspection[inspector][0], last_inspection[inspector][1], inspector)
+                last_inspection[inspector][1] = today # inpection was complete
+                for g in volume:
+                    if g[0] == last_inspection[inspector][0]:
+                        volume[inspector][1] = v # update the volume for that segment
 
 
             # simulate the pruning
@@ -126,7 +121,7 @@ def run_simulation (days = 10):
             for pruner in range ( 0,random.randint(1, 2) ):
                 result = do_prune(today, last_inspection[pruner][0], last_inspection[pruner][1], pruner)
                 if result:
-                    volume[pruner][1] = result
+                    volume[pruner][1] = 0 # volume is zero after prungin
 
 
 

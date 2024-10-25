@@ -71,11 +71,8 @@ def merge_and_filter_pts(workdir="/home/twak/Downloads/d6098df3-bc8e-4696-950e-3
     run_pdal_scripts(workdir, las_files, classes, x,y )
 
 def run_blender( workdir, chunk_size ):
-
-    # call blender to run the meshing script from its directory
     workdir = Path(workdir)
     print("running blender...")
-    # ~/lib/blender/blender  -b pts_to_mesh.blend --python blender_pts_to_mesh.py -- --cycles-device OPTIX --root="/home/twak/Downloads" --name="598550.0_262380.0"
     out = subprocess.run(f'cd {Path(__file__).parent.parent.joinpath("blender")} &&'
                    f'/home/twak/lib/blender/blender -b pts_to_mesh_{chunk_size}.blend --python blender_pts_to_mesh_{chunk_size}.py -- '
                    f'--cycles-device OPTIX --root="{workdir.parent}" --name="{workdir.name}"',
@@ -116,7 +113,9 @@ def go():
                 c2.execute ( f"""
                     SELECT type,name
                     FROM public.a14_las_chunks
-                    WHERE ST_DWithin(geom, ST_SetSRID( ST_MakePoint({origin.x + chunk_size/2}, {origin.y + chunk_size/2}), 27700 ) , {chunk_size})
+                    WHERE ST_DWithin(geom,
+                        ST_SetSRID( ST_MakePoint({origin.x + chunk_size/2}, {origin.y + chunk_size/2}), 27700 ),
+                         {chunk_size})
                     """ )
 
                 # if c2.rowcount < 20:
