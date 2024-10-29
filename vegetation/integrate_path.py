@@ -60,7 +60,7 @@ class IntegratePath:
 
         self.seg_name = seg_name
 
-        # where do we reite the outputs
+        # where do we write the outputs (tom's defaults)
         self.report_path = "/home/twak/Downloads/vege_sim"
         self.work_dir = "/home/twak/Downloads/las_cache" # temporary storage for las files etc
         self.las_write_location = "vege_pruned_las" # location where pruned/labelled las files are written (on the nas in /citnas/08. Researchers/tom/a14)
