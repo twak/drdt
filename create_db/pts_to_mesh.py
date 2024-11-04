@@ -82,7 +82,7 @@ def run_blender( workdir, chunk_size ):
 
 def go():
     chunk_size = 50
-    mesh_route = "mesh_chunks/"
+    mesh_route = f"mesh_chunks_{chunk_size}/"
     mesh_chunks = f"{utils.nas_mount_w}{utils.a14_root}{mesh_route}"
     table_name = "a14_mesh_chunks_test"
 
@@ -178,6 +178,13 @@ def go():
                     pg.con.commit()
 
                 shutil.rmtree(workdir)
+
+    for d in os.listdir(mesh_chunks): # tar all (uncompressed + in folder) for lilia's importer.
+        if os.path.isdir(f"{mesh_chunks}/{d}"):
+            print(d)
+            with tarfile.open(f"{mesh_chunks}/{d}/{d}.tar", "w") as tar:
+                for f in os.listdir(f"{mesh_chunks}/{d}"):
+                    tar.add(f"{mesh_chunks}/{d}/{f}", arcname=f"{d}/{f}")
 
 
 
