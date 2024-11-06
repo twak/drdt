@@ -223,7 +223,7 @@ def merge_las_files( name, las_files, workdir, cull=None, format="las"):
     }},
     """ if cull else ""
 
-
+    os.makedirs(workdir, exist_ok=True)
     with open(os.path.join ( workdir, f"go.json"), "w") as fp:
 
         fp.write("[\n")

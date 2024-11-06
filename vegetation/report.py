@@ -68,35 +68,39 @@ def write_report(ip, i, path):
 
             clo = (ip.v_cut_move + 3) * 10
 
-            imd = ImageDraw.Draw(im, 'RGBA')
-            # dim left hand of image
-            imd.rectangle( [(0,0), (r.shape[1] // 2 - clo, r.shape[0])], fill=(0,0,0, 200) )
+            # imd = ImageDraw.Draw(im, 'RGBA')
+            # # dim left hand of image
+            # imd.rectangle( [(0,0), (r.shape[1] // 2 - clo, r.shape[0])], fill=(0,0,0, 200) )
 
             # draw VTE
-            for line in [
-                [(r.shape[1] // 2 - clo, 0), (r.shape[1] // 2 - clo, r.shape[0])],
-                [(514, r.shape[0]), (610, 0) ] ]:
-                imd.line(line, fill=(166, 255, 166), width=2)
+            # for line in [
+            #     [(r.shape[1] // 2 - clo, 0), (r.shape[1] // 2 - clo, r.shape[0])],
+            #     [(514, r.shape[0]), (610, 0) ] ]:
+            #     imd.line(line, fill=(166, 255, 166), width=2)
 
 
             im.save(os.path.join(ip.report_path, f"{name}{'{:02d}'.format(i)}.png"))
 
     if ip.do_integral_vert:  # vertical density integral
-        cutoff = max(ip.integral_vert.max() * 0.75, 1)
+        cutoff = max(ip.integral_vert.max() , 1)
         r = 255 - (ip.integral_vert * 255 / cutoff)
         r = r.transpose()
         r = np.flip(r, axis=0)  # upside down
         o = np.zeros((r.shape[0], r.shape[1], 4), dtype=np.uint8)
-        o[:, :, 3] = 255 - r  # density = transparency
-        o[:, :, :3] = [255, 120, 255]  # purple!
+        o[:, :, 3] = 255 # 255 - r  # density = transparency
+        # o[:, :, :3] = [255, 120, 255]  # purple!
+
+        cutoff = max(0.01, np.percentile(ip.integral_vert, 99.5))
+        o = magma[1][(np.minimum(magma.shape[1] - 1, ip.integral_vert * magma.shape[1] / cutoff)).astype(np.int32)]
+
         im = Image.fromarray(o.clip(0, 255))
 
-        bg = Image.open(aerial_path).convert("RGBA")
-        bg = ImageEnhance.Brightness(bg).enhance(0.3)
-        bg.paste(im, (0, 0), im)
-        # override alpha
-        bg.putalpha(255)
-        bg.save(os.path.join(ip.report_path, f"vert{'{:02d}'.format(i)}.png"))
+        # bg = Image.open(aerial_path).convert("RGBA")
+        # bg = ImageEnhance.Brightness(bg).enhance(0.3)
+        # bg.paste(im, (0, 0), im)
+        # # override alpha
+        # bg.putalpha(255)
+        im.save(os.path.join(ip.report_path, f"vert{'{:02d}'.format(i)}.png"))
 
     if 'Prune' in ip.report_type:
         remove_map = ""

@@ -123,19 +123,26 @@ def run_simulation (days = 10):
 
 
 if __name__ == '__main__':
-    # random.seed(123)
+
+    with Postgres(pass_file="fred.json") as pg:
+        pg.cur.execute(f"""
+            delete from {las_table}
+        """)
+
+    random.seed(123)
     # run_simulation()
 
-    id = 11
+    id = 12
     today = datetime.strptime('14/10/2024 09:00', '%d/%m/%Y %H:%M')
 
-    grow_trees.grow_trees_on(id, today, las_table=las_table, grown_route=grow_folder, trees_per_meter=0.05)
+    # grow_trees.grow_trees_on(id, today, las_table=las_table, grown_route=grow_folder, trees_per_meter=0.05)
 
     ip = integrate_path.IntegratePath(id)
     ip.las_table = las_table
     ip.scenario_credentials = scenario_credentials
     ip.scenario_api_key = scenario_api_key
     ip.do_integral_vert = ip.do_integral_horiz = True
+    ip.do_make_las_to_prune = True
     ip.report_path = f"{report_folder}/{today}_inspect_{id}"
     ip.work_dir = work_dir
     ip.report_type = "Inspection"
@@ -145,22 +152,22 @@ if __name__ == '__main__':
 
     today = today + timedelta(hours=1)  # scan after pruning
 
-    prune = integrate_path.IntegratePath(id) # do the pruning
-    prune.las_table = las_table
-    prune.scenario_api_key = scenario_api_key
-    prune.scenario_credentials = scenario_credentials
-    prune.do_write_pruned_las = True
-    prune.las_write_location = prune_folder
-    prune.work_dir = work_dir
-    prune.date = today
-    prune.go()
-
-
-    today = today + timedelta(hours=1)  # scan after pruning
-
-    prune.do_integral_vert = prune.do_integral_horiz = True # do the report
-    # prune.do_write_pruned_las = False
-    prune.report_path = f"{report_folder}/{today}_prune_{id}"
-    prune.report_type = "Post-Prune Report"
-    prune.date = today
-    prune.go()
+    # prune = integrate_path.IntegratePath(id) # do the pruning
+    # prune.las_table = las_table
+    # prune.scenario_api_key = scenario_api_key
+    # prune.scenario_credentials = scenario_credentials
+    # prune.do_write_pruned_las = True
+    # prune.las_write_location = prune_folder
+    # prune.work_dir = work_dir
+    # prune.date = today
+    # prune.go()
+    #
+    #
+    # today = today + timedelta(hours=1)  # scan after pruning
+    #
+    # prune.do_integral_vert = prune.do_integral_horiz = True # do the report
+    # # prune.do_write_pruned_las = False
+    # prune.report_path = f"{report_folder}/{today}_prune_{id}"
+    # prune.report_type = "Post-Prune Report"
+    # prune.date = today
+    # prune.go()

@@ -86,7 +86,7 @@ class IntegratePath:
 
         # self.path = None # path we're working on
         self.vi_scale = 1 # scale of the vertical integral image
-        self.vi_pad = 200  # meters expansion beyond path for vertical integral
+        self.vi_pad = 10  # meters expansion beyond path for vertical integral
 
         # used when we want to create a point cloud of a segment (work in progress)
         self.lases_with_classification = []
@@ -276,11 +276,6 @@ class IntegratePath:
 
         # self.pruned_volume = (xyz.shape[0] - pruned.shape[0] ) // 1000 # approx
 
-        if len (pruned) == len (xyz):
-            print("x", end="")
-            # print("no vegetation pruned!")
-            return
-
         # take remaining indicies; apply as filter to original lasdata; write back as new las file
         parent_file = os.path.join(utils.nas_mount_w + utils.a14_root, self.las_write_location)
         os.makedirs(parent_file, exist_ok=True)
@@ -288,8 +283,14 @@ class IntegratePath:
         pruned_filename = utils.unique_file(f"{utils.nas_mount}{utils.a14_root}{self.las_write_location}", pruned_filename[:-4])[1]
 
         with laspy.open(os.path.join(parent_file, f"{pruned_filename}"), mode="w", header=lasdata.header) as writer:
-            to_keep = pruned[:, 5].astype(int)
+            to_keep = xyz[:, 5].astype(int)
             writer.write_points(lasdata.points[to_keep])
+
+        if len (pruned) == len (xyz):
+            print("x", end="")
+            # print("no vegetation pruned!")
+            return
+
 
         with Postgres(pass_file=self.scenario_credentials) as pg:
 
@@ -362,7 +363,11 @@ class IntegratePath:
                 # global integral_vert, vi_scale, vi_pad, path
 
                 self.path = path = shapely.from_wkt(results[1])
+
+                self.path = path = shapely.MultiLineString ( [path.geoms[0].coords[:2]] ) # hack - single wedge only
+
                 path_z = shapely.from_wkb(results[2])
+                path_z = shapely.LineString(path_z.coords[:2])  # hack - single wedge only
 
                 # create a blank image for the vertical integral
                 self.integral_vert = np.zeros(( int ( (path.bounds[2] - path.bounds[0] + 2* self.vi_pad ) * self.vi_scale), int ( ( path.bounds[3] - path.bounds[1] + 2 * self.vi_pad ) * self.vi_scale ) ) )
