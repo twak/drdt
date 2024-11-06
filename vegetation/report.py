@@ -81,6 +81,16 @@ def write_report(ip, i, path):
 
             im.save(os.path.join(ip.report_path, f"{name}{'{:02d}'.format(i)}.png"))
 
+
+    heights = []
+    total_height = 0
+    for name, start, end in [["high", 100, 200], ["medium", 50, 100], ["low", 10, 50]]:
+        t = np.sum(ip.to_prune_horiz_integral[start:end])
+        heights.append((name, t))
+        total_height += t
+
+    height_string = "<br>".join([f"{name}: { '%.2f' % (t / total_height * 100)}%" for name, t in heights])
+
     if ip.do_integral_vert:  # vertical density integral
         cutoff = max(ip.integral_vert.max() * 0.75, 1)
         r = 255 - (ip.integral_vert * 255 / cutoff)
@@ -102,6 +112,7 @@ def write_report(ip, i, path):
         remove_map = ""
     else:
         remove_map = (f"<h3>Horizontal Removal Map</h3>"
+                      f"{height_string}<br/>"
                       f"<br/>Volume to prune: { '%.2f' % ip.pruned_volume} m^3<br>"
                       f"<img src='veg{'{:02d}'.format(i)}.png'>")
 

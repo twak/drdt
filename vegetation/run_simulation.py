@@ -126,6 +126,11 @@ if __name__ == '__main__':
     # random.seed(123)
     # run_simulation()
 
+    with Postgres(pass_file="fred.json") as pg:
+        pg.cur.execute(f"""
+            delete from {las_table}
+        """)
+
     id = 11
     today = datetime.strptime('14/10/2024 09:00', '%d/%m/%Y %H:%M')
 
