@@ -1,20 +1,16 @@
 import flask
-from flask import Flask, redirect
+from flask import Flask, redirect, request
 import json
 from pathlib import Path
 import flask_login
 from . import utils, scenarios, defects
-from shapely import wkb
-
-from .time_and_space import time_and_scenario_query, find_mesh_x
+from .time_and_space import time_and_scenario_query
 
 app = Flask(__name__)
 app.secret_key = Path('api/flask_secret_key').read_text()
 app.debug = True
 login_manager = flask_login.LoginManager()
 login_manager.init_app(app)
-
-from flask import request
 
 @app.route('/')
 def index():
@@ -45,6 +41,7 @@ def find_las():
 
         /v0/find-las?w=601158.9&n=261757.9&e=601205.6&s=261660.2
 
+        each las file is at it's natural location in bng, so doesn't need to be relocated.
     """
     vals, scenario_name = utils.build_commond_state()
 
@@ -66,7 +63,8 @@ def find_las():
 def find_laso():
     """
         similarly for /v0/find-las, except the reply includes the x and y offset in 27700
-        also 50m lower, and each point cloud is at the origin
+        also 50m lower, and each point cloud is at the origin. So you have to apply the offset yourself
+        when you display.
     """
     vals, scenario_name = utils.build_commond_state()
 
