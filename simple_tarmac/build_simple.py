@@ -14,6 +14,13 @@ from vegetation.polyline import Polyline
 from api.utils import norm, perp_vector, perp_vector_triple
 import urllib.request
 
+
+"""
+Create a simple road mesh from LiDAR data + street centrelines.
+This is Tom's implementation of Leo's theory.
+"""
+
+wedge_length = 20
 wide, long = 10, 10
 tex_scale = 10
 
@@ -60,6 +67,10 @@ def build_mesh(pts, id, a, b, c, d):
 
     urllib.request.urlretrieve(f"{utils.api_url}v0/pavement?w={lx}&s={ly}&e={hx}&n={hy}&scale={tex_scale}", os.path.join(path, "road.png"))
     urllib.request.urlretrieve(f"{utils.api_url}v0/aerial?w={lx}&s={ly}&e={hx}&n={hy}&scale={tex_scale}", os.path.join(path, "aerial.png"))
+    urllib.request.urlretrieve(f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
+        f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_defects_cam&exceptions=application%2Fvnd.ogc.se_inimage&"
+        f"SRS=EPSG%3A27700&WIDTH={int((hx - lx)* 100)}&HEIGHT={int((hy - ly)* 100)}"
+        f"&BBOX={lx}%2C{ly}%2C{hx}%2C{hy}", os.path.join(path, "defect_mask.png"))
 
 def find_limits(start, perp_start, las_data):
     p1 = np.array ( [* start + perp_start, 0] )
@@ -183,7 +194,7 @@ def chunk_path():
             id = results[0]
             print(f"\nSplitting path id={id}")
 
-            centre_polyline = Polyline(path.wkt).to_lengths(10)
+            centre_polyline = Polyline(path.wkt).to_lengths(wedge_length)
 
             extent = 10
 
