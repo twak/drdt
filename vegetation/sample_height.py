@@ -27,6 +27,7 @@ def integrate_path():
     cachdir = Path("/home/twak/Downloads/las_cache")
     radius = 1
     seg_count = 1
+    table_name = "trace_twixt_lanes_a14"
 
     # with Postgres(pass_file="pwd_rw.json") as pg:
     #     pg.cur.execute("""
@@ -35,22 +36,24 @@ def integrate_path():
 
     with (Postgres() as pg):
         pg.cur.execute(f"""
-            SELECT  id, ST_AsText(geom), \"Section_Fu\", \"Road_Name\", \"Road_Class\", \"Single_or_\"               
-            FROM public.a14_segments
+            SELECT  id, geom   
+            FROM public.{table_name}
 --             WHERE id = '14' 
             """ )
 
         for results in pg.cur.fetchall():
 
-            path = shapely.from_wkt(results[1])
+            path = shapely.from_wkb(results[1])
             id = results[0]
             print(f"\nSplitting path id={id}")
 
-            if id in [29,30,12,21,16]:
-                print(f"skipping slip road {id}")
-                continue
+            # if id in [29,30,12,21,16]:
+            #     print(f"skipping slip road {id}")
+            #     continue
 
-            for seg in Polyline(path.wkt).split_to_lengths(200):
+            # for seg in Polyline(path.wkt).split_to_lengths(200):
+            if True:
+                seg = path.geoms[0].coords
 
                 print(f"working on segment {seg}")
                 new_coords = []
@@ -59,9 +62,9 @@ def integrate_path():
                     loc = seg[i]
                     # find las chunks around the point and download
                     print (f"looking for las chunks around {loc} - {i} of {len(seg)}")
-                    heights = []
+                    heights = np.zeros((0))
 
-                    if True:
+                    if True: # dry run
                         with Postgres() as pg2:
                             pg2.cur.execute(
                                 f"""
@@ -87,17 +90,31 @@ def integrate_path():
                                         with laspy.open( dest ) as fh:
                                             lasdata = fh.read()
 
-                                            for i, pt in enumerate( lasdata.xyz ): # this can
-                                                if lasdata.classification[i] in  [2, 7, 8, 9, 11]: # road
-                                                    if math.sqrt((loc[0] - pt[0])**2 + (loc[1] - pt[1])**2) < radius:
-                                                        heights.append(pt[2])
+                                            xyz = np.stack((
+                                                lasdata.X * lasdata.header.x_scale,  # move x, y to origin
+                                                lasdata.Y * lasdata.header.y_scale,
+                                                lasdata.Z * lasdata.header.z_scale,  # height is moved to origin below
+                                                lasdata.classification.array,  # we'll use this for filtering out vegetation/cars
+                                                np.arange(lasdata.xyz.shape[0])  # index
+                                            ), axis=1)
+
+                                            xyz = xyz[(xyz[:, 3] == 2) | (xyz[:, 3] == 7) | (xyz[:, 3] == 8) | (xyz[:, 3] == 9) | (xyz[:, 3] == 11) ]  # road
+                                            xyz = xyz[(xyz[:, 0] > loc[0] - radius) & (xyz[:, 0] < loc[0] + radius) & (xyz[:, 1] > loc[1] - radius) & (xyz[:, 1] < loc[1] + radius)]
+
+                                            if xyz.shape[0] > 0:
+                                                heights = np.concatenate ((heights, xyz[:, 2]))
+
+                                            # for i, pt in enumerate( lasdata.xyz ): # this can
+                                            #     if lasdata.classification[i] in  [2, 7, 8, 9, 11]: # road
+                                            #         if math.sqrt((loc[0] - pt[0])**2 + (loc[1] - pt[1])**2) < radius:
+                                            #             heights.append(pt[2])
 
                             print (f"found {len(heights)} heights")
                     else:
-                        heights = [0,0,0,0] # dbg
+                        heights = np.zeros((1))
 
                     if len(heights) > 0:
-                        height = sum(heights) / len(heights)
+                        height = heights.mean()
                     else:
                         height = math.nan
 
@@ -138,8 +155,9 @@ def integrate_path():
                     with Postgres(pass_file="pwd_rw.json") as pg:
 
                         pg.cur.execute( f"""
-                            INSERT INTO public.a14_vegetation_segments (id, geom, \"Section_Fu\", \"Road_Name\", \"Road_Class\", \"Single_or_\" , geom_z)
-                            VALUES ({seg_count}, ST_GeomFromText('{td.wkt}', {utils.sevenseven}), '{results[2]}', '{results[3]}', '{results[4]}', '{results[5]}', ST_GeomFromText('{ls.wkt}', {utils.sevenfour}) )
+                            UPDATE public.{table_name}
+                            SET geom_z = ST_GeomFromText('{ls.wkt}', {utils.sevenfour})
+                            WHERE id = {id};
                             """)
                     seg_count += 1
 
