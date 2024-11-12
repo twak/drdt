@@ -5,6 +5,7 @@ import laspy
 from flask import request
 import os
 import subprocess
+import numpy as np
 
 """
 non-Flask utils
@@ -249,4 +250,29 @@ def merge_las_files( name, las_files, workdir, cull=None, format="las"):
 
     return f"{name}.las"
 
+
+def norm(v):
+    return v / np.linalg.norm(v)
+
+def perp_vector(a, b):
+    v = norm(np.array([b[0] - a[0], b[1] - a[1]]))
+    return np.array([-v[1], v[0]])
+
+def perp_vector_triple(linestring, i):
+    # def perp_vector_triple(a, b, c):
+
+    a = linestring[i - 1] if i > 0 else None
+    b = linestring[i]
+    c = linestring[i + 1] if i < len(linestring) - 1 else None
+
+    if c is None:
+        return perp_vector(a, b)
+    elif a is None:
+        return perp_vector(b, c)
+    else:
+        v1 = perp_vector(a, b)
+        v2 = perp_vector(b, c)
+        out = (v1 + v2)
+        out = out / np.linalg.norm(out)
+        return out
 

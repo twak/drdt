@@ -13,8 +13,10 @@ import subprocess
 import laspy
 from PIL import Image, ImageEnhance, ImageDraw
 from shapely import wkb, wkt
-from api import time_and_space
+from api import time_and_space, utils
 from vegetation import report
+from api.utils import norm, perp_vector, perp_vector_triple
+
 
 """
 Given a linestring ( a road segment ) we, for each line therin, and compute a wedge shape around it. 
@@ -28,31 +30,6 @@ We then download all las files within that wedge, orient them along the line, do
 The output for the road segment is then a vegetation density pointcloud.
 """
 
-
-def norm(v):
-    return v / np.linalg.norm(v)
-
-def perp_vector(a, b):
-    v = norm(np.array([b[0] - a[0], b[1] - a[1]]))
-    return np.array([-v[1], v[0]])
-
-def perp_vector_triple(linestring, i):
-    # def perp_vector_triple(a, b, c):
-
-    a = linestring[i - 1] if i > 0 else None
-    b = linestring[i]
-    c = linestring[i + 1] if i < len(linestring) - 1 else None
-
-    if c == None:
-        return perp_vector(a, b)
-    elif a == None:
-        return perp_vector(b, c)
-    else:
-        v1 = perp_vector(a, b)
-        v2 = perp_vector(b, c)
-        out = (v1 + v2)
-        out = out / np.linalg.norm(out)
-        return out
 
 class IntegratePath:
 

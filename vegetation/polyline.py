@@ -25,6 +25,23 @@ class Polyline():
 
         return self.path[-1], len (self.path) - 1
 
+    def to_lengths(self, dist, tol=5):
+
+        out = []
+        n = max ( 1, int(round(self.l_accum[-1] / dist)) )
+        nd = self.l_accum[-1] / n
+        c = self.path[0]
+
+        out.append(c)
+
+        for seg_i in range(0, n):
+            # split the path into n equal lengths
+
+            pt, max_i = self.find_pt_at_dist(nd * (seg_i + 1)) # find the split
+            out.append(pt)
+
+        return out
+
     def split_to_lengths(self, dist, tol=5):
 
         out = []
