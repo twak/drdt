@@ -6,7 +6,11 @@ import numpy as np
 class Polyline():
 
     def __init__(self, wkt):
-        self.path = np.array ( shapely.from_wkt(wkt).geoms[0].coords )
+
+        if wkt.startswith("LINESTRING"):
+            self.path = np.array ( shapely.from_wkt(wkt).coords )
+        else:
+            self.path = np.array ( shapely.from_wkt(wkt).geoms[0].coords )
 
         self.lengths, self.l_accum = [], []
 

@@ -14,24 +14,26 @@ from vegetation.polyline import Polyline
 from api.utils import norm, perp_vector, perp_vector_triple
 import urllib.request
 
-
 """
 Create a simple road mesh from LiDAR data + street centrelines. 
-This is Tom's DT/parallel implementation of Leo Binnis's algorithm.
+This is Tom's DT/numpy implementation of Leo Binnis's algorithm.
 """
 
 wedge_length = 10
 wide, long = 5, 5
-tex_scale = 10
+tex_scale = 50
 out_root = "simple_road"
+chunk_size = f"{out_root}-{wedge_length}-{tex_scale}-{wide}x{long}" # database chunk_size column
 
 def bounds(a, b, c, d):
     bounds = np.concatenate(([a], [b], [c], [d]), axis=0)
     return bounds[:, 0].min(), bounds[:, 0].max(), bounds[:, 1].min(), bounds[:, 1].max()
 
-def build_mesh(pts, id, a, b, c, d):
+def build_mesh(pts, id, a, b, c, d, offset):
 
     global wide, long, tex_scale, out_root
+
+    print(f"building mesh {id}")
 
     lx, hx, ly, hy = bounds(a, b, c, d)
     uv_range = [hx - lx, hy - ly]
@@ -39,7 +41,7 @@ def build_mesh(pts, id, a, b, c, d):
     obj_verts, obj_uvs, obj_faces = [], [], []
     for i in range(0, wide):  # ' ol biliear interpolation
         for j in range(0, long):
-            obj_verts.append(pts[i][j])
+            obj_verts.append(pts[i][j] - offset)
 
             uv = (pts[i][j][:2] - [lx, ly])/ uv_range
             # uv[1] = 1 - uv[1]
@@ -51,7 +53,7 @@ def build_mesh(pts, id, a, b, c, d):
             obj_faces.append([i * long + j, (i + 1) * long + j, (i + 1) * long + j + 1])
             obj_faces.append([i * long + j, (i + 1) * long + j + 1, i * long + j + 1])
 
-    name = '{:03d}'.format(id)
+    name = chunk_size+'-'+'{:03d}'.format(id)
 
     path = f"/home/twak/Downloads/simple_road/{name}/"
     # path = f"{utils.nas_mount_w}{utils.a14_root}{out_root}/{name}/"
@@ -94,7 +96,7 @@ def find_limits(start, perp_start, las_data):
     p2 = np.array ( [* start - perp_start,0 ] )
 
     dist = np.linalg.norm(np.cross( np.c_[las_data[:, :2], np.zeros(las_data.shape[0]) ] - p1, p2-p1), axis=1) / np.linalg.norm(p2 - p1)
-    near_line = las_data[dist < 1]
+    near_line = las_data[dist < 0.5]
 
     if len(near_line) == 0:
         return None, None
@@ -218,26 +220,26 @@ def process_wedge(id, poly, start, end, perp_start, perp_end):
 
     ls = Polygon(boundary)
 
-    mesh_file, file_list = build_mesh(pts_i, id, a, b, d, c)
+    lx, hx, ly, hy = bounds(a, b, c, d)
+    origin = shapely.Point(lx, ly)
+
+    mesh_file, file_list = build_mesh(pts_i, id, a, b, d, c, [lx,ly,0])
+
 
     with Postgres(pass_file="pwd_rw.json") as pg2:
 
+        global out_root, chunk_size
         pg2.cur.execute(
-            f"""
-            INSERT INTO public.tmp (id, geom)
-            VALUES ({id}, ST_GeomFromText('{ls.wkt}', 27700))
-            """
-        )
-
-        hx, hy, lx, ly = bounds(a, b, c, d)
-        origin = shapely.Point(hx, lx)
-        global out_root
+            f'INSERT INTO public.a14_mesh_chunks(geom, name, nas, files, origin, chunk_size) '
+            'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(name)s, %(nas)s, %(files)s, ST_SetSRID(%(origin)s::geometry, %(srid)s), %(chunk_size)s)',
+            {'geom': ls.wkb_hex, 'srid': 27700, 'type': 'mesh', 'name': mesh_file, 'nas': f"{utils.a14_root}{out_root}/{mesh_file}", 'files': file_list, 'origin': origin.wkb_hex, 'chunk_size': -1})
 
         # pg2.cur.execute(
-        #     f'INSERT INTO public.a14_mesh_chunks2(geom, name, nas, files, origin, chunk_size) '
-        #     'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(name)s, %(nas)s, %(files)s, ST_SetSRID(%(origin)s::geometry, %(srid)s), %(chunk_size)s)',
-        #     {'geom': ls.wkb_hex, 'srid': 27700, 'type': 'mesh', 'name': mesh_file, 'nas': f"{utils.a14_root}{out_root}/{mesh_file}", 'files': file_list, 'origin': origin.wkb_hex, 'chunk_size': -1})
-
+        #     f"""
+        #     INSERT INTO public.tmp (id, geom)
+        #     VALUES ({id}, ST_GeomFromText('{ls.wkt}', 27700))
+        #     """
+        # )
     # with Postgres(pass_file="pwd_rw.json") as pg2:
     #     pg2.cur.execute(
     #         f"""
@@ -258,14 +260,31 @@ def chunk_path():
             CREATE TABLE public.tmp (id text, geom geometry);
             """)
 
+        pg2.cur.execute(
+            f"""
+            DROP TABLE IF EXISTS public.a14_mesh_chunks2;
+            CREATE TABLE IF NOT EXISTS public.a14_mesh_chunks2
+            (
+                geom geometry(Polygon,27700),
+                name text,
+                nas text,
+                files text,
+                origin geometry(Point,27700),
+                existence tsmultirange,
+                chunk_size text
+            );
+            """
+        )
+
     count = 0
     with (Postgres() as pg):
         pg.cur.execute(f"""
-                SELECT  id, geom   
+                SELECT  id, geom_z  
                 FROM public.{table_name}
-                WHERE id = '6' or id = '2';
+                WHERE id = '3';
                 """)
 
+        # WHERE id = '6' or id = '2';
         for results in pg.cur.fetchall():
             path = shapely.from_wkb(results[1])
             id = results[0]
@@ -273,20 +292,22 @@ def chunk_path():
 
             centre_polyline = Polyline(path.wkt).to_lengths(wedge_length)
 
-            extent = 5
+            extent = 50
 
             for i in range ( len(centre_polyline)-1 ):
 
-                if i < 20:
-                    continue
-
                 print(f"working on segment {i} of street {id}")
+                # if i < 8:
+                #     continue
 
                 start = np.array(centre_polyline[i])
                 end = np.array(centre_polyline[i + 1])
 
                 perp_start = perp_vector_triple(centre_polyline, i)   * extent
                 perp_end = perp_vector_triple(centre_polyline, i + 1) * extent
+
+                perp_start = np.array([*perp_start, 0])
+                perp_end = np.array([*perp_end, 0])
 
                 a = start + perp_start
                 b = end + perp_end
@@ -307,10 +328,8 @@ def chunk_path():
                 perp_start /= np.linalg.norm(perp_start)
                 perp_end /= np.linalg.norm(perp_end)
 
-                process_wedge(count, ls, start, end, perp_start, perp_end)
+                # process_wedge(count, ls, start, end, perp_start, perp_end)
                 count += 1
-
-                break
 
 if __name__ == '__main__':
     chunk_path()

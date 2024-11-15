@@ -140,15 +140,15 @@ def find_mesh():
     """
 
     vals, scenario_name = utils.build_commond_state()
-    scale = 10
+    scale = "10"
     if 'scale' in request.args:
-        scale = int(request.args.get('scale'))
+        scale = request.args.get('scale')
 
-    if scale not in [10, 50]:
-        return f"uknown scale {scale} - currently we have 10 and 50m chunks"
+    # if scale not in ["10", "50"]:
+    #     return f"uknown scale {scale} - currently we have 10 and 50m chunks"
 
     def loc(ch):
-        return f" AND ST_Intersects ( {ch}.geom, {utils.envelope(vals)} ) AND chunk_size = {scale}"
+        return f" AND ST_Intersects ( {ch}.geom, {utils.envelope(vals)} ) AND chunk_size = '{scale}'"
 
     with utils.Postgres() as pg:
         results = time_and_scenario_query("a14_mesh_chunks", location=loc, scenario=scenario_name, cols=['origin', 'files', 'nas'], pg=pg)
