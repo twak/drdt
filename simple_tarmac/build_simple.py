@@ -16,23 +16,34 @@ import urllib.request
 
 
 """
-Create a simple road mesh from LiDAR data + street centrelines.
-This is Tom's implementation of Leo's theory.
+Create a simple road mesh from LiDAR data + street centrelines. 
+This is Tom's DT/parallel implementation of Leo Binnis's algorithm.
 """
 
-wedge_length = 20
-wide, long = 10, 10
+wedge_length = 10
+wide, long = 5, 5
 tex_scale = 10
+out_root = "simple_road"
+
+def bounds(a, b, c, d):
+    bounds = np.concatenate(([a], [b], [c], [d]), axis=0)
+    return bounds[:, 0].min(), bounds[:, 0].max(), bounds[:, 1].min(), bounds[:, 1].max()
 
 def build_mesh(pts, id, a, b, c, d):
 
-    global wide, long, tex_scale
+    global wide, long, tex_scale, out_root
+
+    lx, hx, ly, hy = bounds(a, b, c, d)
+    uv_range = [hx - lx, hy - ly]
 
     obj_verts, obj_uvs, obj_faces = [], [], []
     for i in range(0, wide):  # ' ol biliear interpolation
         for j in range(0, long):
             obj_verts.append(pts[i][j])
-            obj_uvs.append([i / wide, j / long])
+
+            uv = (pts[i][j][:2] - [lx, ly])/ uv_range
+            # uv[1] = 1 - uv[1]
+            obj_uvs.append( uv )
 
             if i == wide - 1 or j == long - 1:
                 continue
@@ -40,18 +51,22 @@ def build_mesh(pts, id, a, b, c, d):
             obj_faces.append([i * long + j, (i + 1) * long + j, (i + 1) * long + j + 1])
             obj_faces.append([i * long + j, (i + 1) * long + j + 1, i * long + j + 1])
 
-    path = f"/home/twak/Downloads/simple_road/{'{:03d}'.format(id)}/"
+    name = '{:03d}'.format(id)
+
+    path = f"/home/twak/Downloads/simple_road/{name}/"
+    # path = f"{utils.nas_mount_w}{utils.a14_root}{out_root}/{name}/"
+
     os.makedirs(path, exist_ok=True)
     with open(f"{path}/mesh.obj", "w") as fp:
         fp.write(f"mtllib road.mtl\n")
         fp.write(f"usemtl road\n")
         fp.write(f"o road\n")
-        for v in obj_verts:
-            fp.write(f"v {v[0]} {v[1]} {v[2]}\n")
-        for v in obj_uvs:
-            fp.write(f"vt {v[0]} {v[1]}\n")
-        for v in obj_faces:
-            fp.write(f"f {v[0] + 1}/{v[0] + 1} {v[1] + 1}/{v[1] + 1} {v[2] + 1}/{v[2] + 1}\n")
+        for x in obj_verts:
+            fp.write(f"v {x[0]} {x[1]} {x[2]}\n")
+        for u in obj_uvs:
+            fp.write(f"vt {u[0]} {u[1]}\n")
+        for f in obj_faces:
+            fp.write(f"f {f[0] + 1}/{f[0] + 1} {f[1] + 1}/{f[1] + 1} {f[2] + 1}/{f[2] + 1}\n")
 
     with open(f"{path}/road.mtl", "w") as fp:
         fp.write(f"newmtl road\n")
@@ -62,9 +77,6 @@ def build_mesh(pts, id, a, b, c, d):
         fp.write(f"illum 1\n")
         fp.write(f"map_Kd road.png\n")
 
-    bounds = np.concatenate((a, b, c, d), axis=0)
-    lx, hx, ly, hy = bounds[:, 0].min(), bounds[:, 0].max(), bounds[:, 1].min(), bounds[:, 1].max()
-
     urllib.request.urlretrieve(f"{utils.api_url}v0/pavement?w={lx}&s={ly}&e={hx}&n={hy}&scale={tex_scale}", os.path.join(path, "road.png"))
     urllib.request.urlretrieve(f"{utils.api_url}v0/aerial?w={lx}&s={ly}&e={hx}&n={hy}&scale={tex_scale}", os.path.join(path, "aerial.png"))
     urllib.request.urlretrieve(f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
@@ -72,28 +84,37 @@ def build_mesh(pts, id, a, b, c, d):
         f"SRS=EPSG%3A27700&WIDTH={int((hx - lx)* 100)}&HEIGHT={int((hy - ly)* 100)}"
         f"&BBOX={lx}%2C{ly}%2C{hx}%2C{hy}", os.path.join(path, "defect_mask.png"))
 
-def find_limits(start, perp_start, las_data):
-    p1 = np.array ( [* start + perp_start, 0] )
-    p2 = np.array ( [* start - perp_start, 0] )
+    return name, "mesh.obj;road.mtl;road.png;aerial.png;defect_mask.png"
 
-    dist = np.linalg.norm(np.cross(p2 - p1, p1 - las_data[:, :3]), axis=1) / np.linalg.norm(p2 - p1)
-    near_line = las_data[dist < 0.5]
+
+
+def find_limits(start, perp_start, las_data):
+
+    p1 = np.array ( [* start + perp_start,0 ] )
+    p2 = np.array ( [* start - perp_start,0 ] )
+
+    dist = np.linalg.norm(np.cross( np.c_[las_data[:, :2], np.zeros(las_data.shape[0]) ] - p1, p2-p1), axis=1) / np.linalg.norm(p2 - p1)
+    near_line = las_data[dist < 1]
+
+    if len(near_line) == 0:
+        return None, None
+
+    # let's do this bit in 2d with all points!
+    # near_line = las_data
+    p1 = np.array ( [* start + perp_start ] )
+    p2 = np.array ( [* start ] )
+    near_line = near_line[:, :2]
 
     # project onto distances along line, pick those close to line
-    las_data[:, :3] = near_line[:, :3] - p1
+    near_line = near_line - p1
     dir = p2 - p1
-    dir /= np.linalg.norm(p2 - p1)
-    las_data[:, 3] = np.dot(las_data[:, :3], dir)
-    las_data = las_data[las_data[:, 3] < 0.5]
+    proj = np.dot(near_line, dir) / np.dot(dir, dir)
 
     # compute start and end points
-    min = las_data[las_data[:, 3].argmin()][3]
-    max = las_data[las_data[:, 3].argmin()][3]
+    min = proj[proj.argmin()]
+    max = proj[proj.argmax()]
 
-    print(f"min {min} max {max}")
-
-    dir *= (max - min)
-    return p1 + dir, p2 + dir
+    return p1 + (dir *min), p1 + (dir * max)
 
 
 def process_wedge(id, poly, start, end, perp_start, perp_end):
@@ -105,7 +126,8 @@ def process_wedge(id, poly, start, end, perp_start, perp_end):
             f"""
                SELECT name, geom, nas, origin
                FROM public.a14_las_chunks
-               WHERE ST_Intersects(geom, ST_Expand ( {utils.post_geom(poly)}, 0.5) )
+--                WHERE  ST_Intersects(geom, {utils.post_geom(poly)} )
+               WHERE  ST_Intersects(geom, ST_Expand ( {utils.post_geom(poly)}, 0.5) ) -- expand range to ensure computation of start/end lines is same as neighbours
                """
         )
 
@@ -114,8 +136,6 @@ def process_wedge(id, poly, start, end, perp_start, perp_end):
 
             chunk_name = b[0]
             chunk_nas = b[2]
-            chunk_geom = b[1]
-            chunk_origin = b[3]
 
             print(".", end="")
             # print("processing las chunk", chunk_name)
@@ -135,16 +155,17 @@ def process_wedge(id, poly, start, end, perp_start, perp_end):
                     lasdata.classification.array,  # we'll use this for filtering out vegetation/cars
                 ), axis=1)
 
-                xyz = xyz[(xyz[:, 3] == 11)]  # road pls
+                xyz = xyz[(xyz[:, 3] == 11)]  # road only
                 las_data = np.concatenate((las_data, xyz))
 
-    # a plane to trim points on the wrong side of the road...
-    psn = perp_start / np.linalg.norm(perp_start) * 4  # 4 meters from centreline to meridian...?
-    sps = start + psn
+    # a plane to trim points on the wrong side of the road... (no: just use distance from segment for now!)
+    psn = -4 * perp_start / np.linalg.norm(perp_start)
+    sps = start + psn # go through this point: 4 meters from centreline to meridian...?!
     norm = end - start
     norm /= np.linalg.norm(norm)
-    norm = [norm[1], -norm[0]]
+    norm = [-norm[1], norm[0]]
     c = -np.dot(norm, sps)
+
     for plane in [[*norm, c]]:
         las_data = las_data[(las_data[:, 0] * plane[0] + las_data[:, 1] * plane[1] + plane[2]) > 0]
 
@@ -152,41 +173,97 @@ def process_wedge(id, poly, start, end, perp_start, perp_end):
     a,b = find_limits(start, perp_start, las_data)
     c,d = find_limits(end, perp_end, las_data)
 
+    if a is None or d is None:
+        print(f"no points found on {id}")
+        return
+
     global wide, long
 
-    tol = 0.1  # size of sample around point
+    tol = 0.1  # 10cm height average around each vert
 
     pts_i = []
     for i in range(0, wide): # ' ol biliear interpolation
 
-        i1 = a + (b - a) * i / wide
-        i2 = c + (d - c) * i / wide
+        i1 = a + (b - a) * i / (wide-1)
+        i2 = c + (d - c) * i / (wide-1)
         pts_j = []
         pts_i.append(pts_j)
 
+        avg_heights = []
         for j in range(0, long):
 
-            pt = i1 + (i2 - i1) * j / long
-            height = las_data[
-                         las_data[:,0]-tol > pt[0] & las_data[:,0]+tol < pt[0] &
-                         las_data[:,1]-tol > pt[1] & las_data[:,1]+tol < pt[1]
-                         ][:,2].mean()
+            pt = i1 + (i2 - i1) * j / (long-1)
+            around_pt = las_data[
+                         (las_data[:, 0] - tol < pt[0]) &
+                         (las_data[:, 0] + tol > pt[0]) &
+                         (las_data[:, 1] - tol < pt[1]) &
+                         (las_data[:, 1] + tol > pt[1]) ]
+
+            if len(around_pt) == 0:
+                height = 0
+            else:
+                height = around_pt[:,2].mean()
+                avg_heights.append(height)
 
             pts_j.append(np.array([*pt, height]) )
 
-    build_mesh(pts_i, id, a, b, c, d)
+    # patch out of bound heights
+    mean_height = np.mean(avg_heights)
+    for pts_j in pts_i:
+        for pt in pts_j:
+            if pt[2] == 0:
+                pt[2] = mean_height
+
+    boundary = [a, b, d, c]
+
+    ls = Polygon(boundary)
+
+    mesh_file, file_list = build_mesh(pts_i, id, a, b, d, c)
+
+    with Postgres(pass_file="pwd_rw.json") as pg2:
+
+        pg2.cur.execute(
+            f"""
+            INSERT INTO public.tmp (id, geom)
+            VALUES ({id}, ST_GeomFromText('{ls.wkt}', 27700))
+            """
+        )
+
+        hx, hy, lx, ly = bounds(a, b, c, d)
+        origin = shapely.Point(hx, lx)
+        global out_root
+
+        # pg2.cur.execute(
+        #     f'INSERT INTO public.a14_mesh_chunks2(geom, name, nas, files, origin, chunk_size) '
+        #     'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(name)s, %(nas)s, %(files)s, ST_SetSRID(%(origin)s::geometry, %(srid)s), %(chunk_size)s)',
+        #     {'geom': ls.wkb_hex, 'srid': 27700, 'type': 'mesh', 'name': mesh_file, 'nas': f"{utils.a14_root}{out_root}/{mesh_file}", 'files': file_list, 'origin': origin.wkb_hex, 'chunk_size': -1})
+
+    # with Postgres(pass_file="pwd_rw.json") as pg2:
+    #     pg2.cur.execute(
+    #         f"""
+    #         INSERT INTO public.tmp (id, geom)
+    #         VALUES ({id}, ST_GeomFromText('{ls.wkt}', 27700))
+    #         """
+    #     )
 
 
 def chunk_path():
 
     table_name = "a14_segments"
 
+    with Postgres(pass_file="pwd_rw.json") as pg2:
+        pg2.cur.execute(
+            f"""
+            DROP TABLE IF EXISTS public.tmp;
+            CREATE TABLE public.tmp (id text, geom geometry);
+            """)
+
     count = 0
     with (Postgres() as pg):
         pg.cur.execute(f"""
                 SELECT  id, geom   
                 FROM public.{table_name}
-                WHERE id = '6'
+                WHERE id = '6' or id = '2';
                 """)
 
         for results in pg.cur.fetchall():
@@ -196,16 +273,19 @@ def chunk_path():
 
             centre_polyline = Polyline(path.wkt).to_lengths(wedge_length)
 
-            extent = 10
+            extent = 5
 
             for i in range ( len(centre_polyline)-1 ):
+
+                if i < 20:
+                    continue
 
                 print(f"working on segment {i} of street {id}")
 
                 start = np.array(centre_polyline[i])
                 end = np.array(centre_polyline[i + 1])
 
-                perp_start = perp_vector_triple(centre_polyline, i) * extent
+                perp_start = perp_vector_triple(centre_polyline, i)   * extent
                 perp_end = perp_vector_triple(centre_polyline, i + 1) * extent
 
                 a = start + perp_start
@@ -216,8 +296,21 @@ def chunk_path():
 
                 ls = Polygon(boundary)
 
+                # with Postgres(pass_file="pwd_rw.json") as pg2:
+                #     pg2.cur.execute(
+                #         f"""
+                #         INSERT INTO public.tmp (id, geom)
+                #         VALUES ({id}, ST_GeomFromText('{ls.wkt}', 27700))
+                #         """
+                #     )
+
+                perp_start /= np.linalg.norm(perp_start)
+                perp_end /= np.linalg.norm(perp_end)
+
                 process_wedge(count, ls, start, end, perp_start, perp_end)
                 count += 1
+
+                break
 
 if __name__ == '__main__':
     chunk_path()
