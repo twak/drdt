@@ -25,6 +25,9 @@ tex_scale = 50
 out_root = "simple_road"
 chunk_size = f"{out_root}-{wedge_length}-{tex_scale}-{wide}x{long}" # database chunk_size column
 
+segment_table_name = "a14_segments"
+mesh_table_name = "a14_mesh_chunks2"
+
 def bounds(a, b, c, d):
     bounds = np.concatenate(([a], [b], [c], [d]), axis=0)
     return bounds[:, 0].min(), bounds[:, 0].max(), bounds[:, 1].min(), bounds[:, 1].max()
@@ -38,6 +41,7 @@ def build_mesh(pts, id, a, b, c, d, offset):
     lx, hx, ly, hy = bounds(a, b, c, d)
     uv_range = [hx - lx, hy - ly]
 
+    # compute vertex, uvs, and face indices
     obj_verts, obj_uvs, obj_faces = [], [], []
     for i in range(0, wide):  # ' ol biliear interpolation
         for j in range(0, long):
@@ -53,12 +57,13 @@ def build_mesh(pts, id, a, b, c, d, offset):
             obj_faces.append([i * long + j, (i + 1) * long + j, (i + 1) * long + j + 1])
             obj_faces.append([i * long + j, (i + 1) * long + j + 1, i * long + j + 1])
 
-    name = chunk_size+'-'+'{:03d}'.format(id)
+    name = '{:03d}'.format(id)
 
-    path = f"/home/twak/Downloads/simple_road/{name}/"
-    # path = f"{utils.nas_mount_w}{utils.a14_root}{out_root}/{name}/"
-
+    # path = f"/home/twak/Downloads/simple_road/{name}/"
+    path = f"{utils.nas_mount_w}{utils.a14_root}{chunk_size}/{name}/"
     os.makedirs(path, exist_ok=True)
+
+    # write out the obj file to disk...
     with open(f"{path}/mesh.obj", "w") as fp:
         fp.write(f"mtllib road.mtl\n")
         fp.write(f"usemtl road\n")
@@ -79,6 +84,7 @@ def build_mesh(pts, id, a, b, c, d, offset):
         fp.write(f"illum 1\n")
         fp.write(f"map_Kd road.png\n")
 
+    # download the textures from geoserver
     urllib.request.urlretrieve(f"{utils.api_url}v0/pavement?w={lx}&s={ly}&e={hx}&n={hy}&scale={tex_scale}", os.path.join(path, "road.png"))
     urllib.request.urlretrieve(f"{utils.api_url}v0/aerial?w={lx}&s={ly}&e={hx}&n={hy}&scale={tex_scale}", os.path.join(path, "aerial.png"))
     urllib.request.urlretrieve(f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
@@ -123,6 +129,7 @@ def process_wedge(id, poly, start, end, perp_start, perp_end):
 
     work_dir = Path("/home/twak/Downloads/las_cache")
 
+    # find all las chunks within the wedge-shape
     with Postgres() as pg2:
         pg2.cur.execute(
             f"""
@@ -134,6 +141,7 @@ def process_wedge(id, poly, start, end, perp_start, perp_end):
         )
 
         las_data = np.zeros((0, 4))
+        # download each las chunk
         for b in pg2.cur.fetchall():
 
             chunk_name = b[0]
@@ -168,10 +176,11 @@ def process_wedge(id, poly, start, end, perp_start, perp_end):
     norm = [-norm[1], norm[0]]
     c = -np.dot(norm, sps)
 
+    # trim points on the wrong side of the road
     for plane in [[*norm, c]]:
         las_data = las_data[(las_data[:, 0] * plane[0] + las_data[:, 1] * plane[1] + plane[2]) > 0]
 
-    # we now have a road las cloud of the points around the grid
+    # we now have a road width with the remaining points
     a,b = find_limits(start, perp_start, las_data)
     c,d = find_limits(end, perp_end, las_data)
 
@@ -181,8 +190,8 @@ def process_wedge(id, poly, start, end, perp_start, perp_end):
 
     global wide, long
 
+    # we are going to loop over the road grid and store the x,y,z of each point.
     tol = 0.1  # 10cm height average around each vert
-
     pts_i = []
     for i in range(0, wide): # ' ol biliear interpolation
 
@@ -195,6 +204,7 @@ def process_wedge(id, poly, start, end, perp_start, perp_end):
         for j in range(0, long):
 
             pt = i1 + (i2 - i1) * j / (long-1)
+            # filter to find las-points around this vertex
             around_pt = las_data[
                          (las_data[:, 0] - tol < pt[0]) &
                          (las_data[:, 0] + tol > pt[0]) &
@@ -204,20 +214,21 @@ def process_wedge(id, poly, start, end, perp_start, perp_end):
             if len(around_pt) == 0:
                 height = 0
             else:
+                # and average to find the mean height...
                 height = around_pt[:,2].mean()
                 avg_heights.append(height)
 
             pts_j.append(np.array([*pt, height]) )
 
-    # patch out of bound heights
+    # patch out-of-bound heights
     mean_height = np.mean(avg_heights)
     for pts_j in pts_i:
         for pt in pts_j:
             if pt[2] == 0:
                 pt[2] = mean_height
 
+    # the perimeter of the trimmed wedge, for the database.
     boundary = [a, b, d, c]
-
     ls = Polygon(boundary)
 
     lx, hx, ly, hy = bounds(a, b, c, d)
@@ -225,14 +236,14 @@ def process_wedge(id, poly, start, end, perp_start, perp_end):
 
     mesh_file, file_list = build_mesh(pts_i, id, a, b, d, c, [lx,ly,0])
 
-
+    # insert the new mesh into the database, along with it's boundary.
     with Postgres(pass_file="pwd_rw.json") as pg2:
 
         global out_root, chunk_size
         pg2.cur.execute(
-            f'INSERT INTO public.a14_mesh_chunks(geom, name, nas, files, origin, chunk_size) '
-            'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(name)s, %(nas)s, %(files)s, ST_SetSRID(%(origin)s::geometry, %(srid)s), %(chunk_size)s)',
-            {'geom': ls.wkb_hex, 'srid': 27700, 'type': 'mesh', 'name': mesh_file, 'nas': f"{utils.a14_root}{out_root}/{mesh_file}", 'files': file_list, 'origin': origin.wkb_hex, 'chunk_size': -1})
+            f'INSERT INTO public.{mesh_table_name}(geom, name, nas, files, origin, chunk_size, existence) '
+            'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(name)s, %(nas)s, %(files)s, ST_SetSRID(%(origin)s::geometry, %(srid)s), %(chunk_size)s, %(existence)s)',
+            {'geom': ls.wkb_hex, 'srid': 27700, 'type': 'mesh', 'name': mesh_file, 'nas': f"{utils.a14_root}{chunk_size}/{mesh_file}", 'files': file_list, 'origin': origin.wkb_hex, 'chunk_size': chunk_size, 'existence': utils.before_time_range})
 
         # pg2.cur.execute(
         #     f"""
@@ -251,7 +262,6 @@ def process_wedge(id, poly, start, end, perp_start, perp_end):
 
 def chunk_path():
 
-    table_name = "a14_segments"
 
     with Postgres(pass_file="pwd_rw.json") as pg2:
         pg2.cur.execute(
@@ -260,31 +270,33 @@ def chunk_path():
             CREATE TABLE public.tmp (id text, geom geometry);
             """)
 
-        pg2.cur.execute(
-            f"""
-            DROP TABLE IF EXISTS public.a14_mesh_chunks2;
-            CREATE TABLE IF NOT EXISTS public.a14_mesh_chunks2
-            (
-                geom geometry(Polygon,27700),
-                name text,
-                nas text,
-                files text,
-                origin geometry(Point,27700),
-                existence tsmultirange,
-                chunk_size text
-            );
-            """
-        )
+        if mesh_table_name is not "a14_mesh_chunks":
+            pg2.cur.execute(
+                f"""
+                DROP TABLE IF EXISTS public.{mesh_table_name};
+                CREATE TABLE IF NOT EXISTS public.{mesh_table_name}
+                (
+                    geom geometry(Polygon,27700),
+                    name text,
+                    nas text,
+                    files text,
+                    origin geometry(Point,27700),
+                    existence tsmultirange,
+                    chunk_size text
+                );
+                """
+            )
 
     count = 0
+    # pull the centre-of-road lines from the database
     with (Postgres() as pg):
         pg.cur.execute(f"""
-                SELECT  id, geom_z  
-                FROM public.{table_name}
-                WHERE id = '3';
+                SELECT  id, geom   
+                FROM public.{segment_table_name}
+                WHERE id = '6' or id = '2';
                 """)
 
-        # WHERE id = '6' or id = '2';
+        # for west and east bound roads
         for results in pg.cur.fetchall():
             path = shapely.from_wkb(results[1])
             id = results[0]
@@ -292,22 +304,18 @@ def chunk_path():
 
             centre_polyline = Polyline(path.wkt).to_lengths(wedge_length)
 
-            extent = 50
 
+            extent = 5 # extent of wedge
             for i in range ( len(centre_polyline)-1 ):
 
                 print(f"working on segment {i} of street {id}")
-                # if i < 8:
-                #     continue
 
+                # compute the shape of the wedge (for las query)
                 start = np.array(centre_polyline[i])
                 end = np.array(centre_polyline[i + 1])
 
                 perp_start = perp_vector_triple(centre_polyline, i)   * extent
                 perp_end = perp_vector_triple(centre_polyline, i + 1) * extent
-
-                perp_start = np.array([*perp_start, 0])
-                perp_end = np.array([*perp_end, 0])
 
                 a = start + perp_start
                 b = end + perp_end
@@ -317,18 +325,10 @@ def chunk_path():
 
                 ls = Polygon(boundary)
 
-                # with Postgres(pass_file="pwd_rw.json") as pg2:
-                #     pg2.cur.execute(
-                #         f"""
-                #         INSERT INTO public.tmp (id, geom)
-                #         VALUES ({id}, ST_GeomFromText('{ls.wkt}', 27700))
-                #         """
-                #     )
-
                 perp_start /= np.linalg.norm(perp_start)
                 perp_end /= np.linalg.norm(perp_end)
 
-                # process_wedge(count, ls, start, end, perp_start, perp_end)
+                process_wedge(count, ls, start, end, perp_start, perp_end)
                 count += 1
 
 if __name__ == '__main__':
