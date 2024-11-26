@@ -59,7 +59,6 @@ def build_mesh(pts, id, a, b, c, d, offset):
 
     name = '{:03d}'.format(id)
 
-    # path = f"/home/twak/Downloads/simple_road/{name}/"
     path = f"{utils.nas_mount_w}{utils.a14_root}{chunk_size}/{name}/"
     os.makedirs(path, exist_ok=True)
 
@@ -127,7 +126,7 @@ def find_limits(start, perp_start, las_data):
 
 def process_wedge(id, poly, start, end, perp_start, perp_end):
 
-    work_dir = Path("/home/twak/Downloads/las_cache")
+    work_dir = Path(f"{utils.scratch}/las_cache")
 
     # find all las chunks within the wedge-shape
     with Postgres() as pg2:

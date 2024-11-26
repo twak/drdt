@@ -2,6 +2,7 @@ import sys
 
 import bpy
 import os, sys
+from ..api import utils
 
 """
 Coverts "stage2" of the pts to mesh pipeline outputs to "stage3" using blender.
@@ -13,9 +14,8 @@ root and name describe the location of the las chunks, and the folder containing
 
 """
 
-
 name = "598550.0_262380.0"  # debug!
-root = f"/home/twak/Downloads/{name}"
+root = f"{utils.scratch}/{name}"
 
 for s in sys.argv[1:]:
     if s.startswith("--name="):

@@ -7,8 +7,8 @@ import integrate_path
 import grow_trees
 
 experiment           = "_2"
-work_dir             = "/home/twak/Downloads/vege_scratch"
-report_folder        = f"/home/twak/Downloads/vege_sim{experiment}"
+work_dir             = "{utils.scratch}/vege_scratch"
+report_folder        = f"{utils.scratch}/vege_sim{experiment}"
 las_table            = "scenario.fred_vege_a14_las_chunks"
 grow_folder          = f"experiment{experiment}/grown_las/"
 prune_folder         = f"experiment{experiment}/pruned_las/"

@@ -67,7 +67,7 @@ def go():
     lasos = f"{utils.nas_mount_w}{utils.laso_route}"
     os.makedirs(lasos, exist_ok=True)
     chunk_size = 10 # meters
-    scratch = "/home/twak/Downloads/foo"
+    scratch = f"{utils.scratch}/foo"
     table_name = "a14_laso_chunks"
 
     with Postgres(pass_file="pwd_rw.json") as pg:

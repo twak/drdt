@@ -1,9 +1,11 @@
 import os
 import sys
+from ..api import utils
 import bpy
 from pathlib import Path
 
-workdir = f"/home/twak/Downloads/fbx_obj"
+
+workdir = f"{utils.scratch}/fbx_obj"
 os.makedirs(workdir, exist_ok=True)
 
 for s in sys.argv[1:]:

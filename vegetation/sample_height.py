@@ -24,7 +24,7 @@ It filters for ground-based points and takes the mean. For points where there is
 
 def integrate_path():
 
-    cachdir = Path("/home/twak/Downloads/las_cache")
+    cachdir = Path("{utils.scratch}/las_cache")
     radius = 1
     seg_count = 1
     table_name = "trace_twixt_lanes_a14"

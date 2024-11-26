@@ -12,6 +12,8 @@ import bcrypt
 from flask import Response
 from . import app
 
+admin_users = ["twak"]
+
 class User(flask_login.UserMixin):
     pass
 
@@ -80,7 +82,7 @@ def ensure_scenario_tables(pg):
 
 def is_admin():
     # return True
-    return (not flask_login.current_user.is_anonymous) and flask_login.current_user.id == 'twak'
+    return (not flask_login.current_user.is_anonymous) and flask_login.current_user.id in admin_users
 
 def create_user():
 
@@ -387,7 +389,7 @@ def do_delete_scenario(scenario, human):
 
 def do_delete_human (human):
 
-    if not is_admin() or human == 'twak':
+    if not is_admin() or human in admin_users:
         return "unauthorized", 401
 
     with utils.Postgres(pass_file="pwd_rw.json") as pg:
@@ -397,7 +399,7 @@ def do_delete_human (human):
 
         pg.cur.execute(f"DELETE FROM public.humans WHERE human_name = '{human}';")
         
-        pg.cur.execute(f"REASSIGN OWNED BY {human} TO twak;"
+        pg.cur.execute(f"REASSIGN OWNED BY {human} TO postgres;"
                        f"DROP OWNED BY {human};"
                        f"DROP USER IF EXISTS {human};")
 

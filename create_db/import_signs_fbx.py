@@ -42,7 +42,7 @@ def get_bounds(fbx_file):
     obj_file = Path(fbx_file).with_suffix(".obj")
     if not Path(obj_file).exists():
         out = subprocess.run(f'cd {Path(__file__).parent.parent.joinpath("blender")} &&'
-                             f'/home/twak/lib/blender/blender --python blender_fbx_to_obj.py -- '
+                             f'{utils.blender_binary} -b  --python blender_fbx_to_obj.py -- '
                              f'--cycles-device OPTIX --input="{fbx_file}"',
                              shell=True, executable='/bin/bash')
         if out.returncode != 0:

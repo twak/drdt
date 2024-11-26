@@ -62,7 +62,7 @@ def run_pdal_scripts(workdir, las_files, classes, x, y):
         subprocess.run(f'cd {workdir} && pdal pipeline {out_folder}/go_{klass}.json', shell=True, executable='/bin/bash')
 
 
-def merge_and_filter_pts(workdir="/home/twak/Downloads/d6098df3-bc8e-4696-950e-30cfb4066ef5/",  x=598555.51,y=262383.29):
+def merge_and_filter_pts(workdir=f"{utils.scratch}/d6098df3-bc8e-4696-950e-30cfb4066ef5/",  x=598555.51,y=262383.29):
 
     las_files = list ( filter (lambda x : x.endswith(".las"), os.listdir(os.path.join(workdir, "stage1" ) ) ) )
     classes = {}
@@ -74,7 +74,7 @@ def run_blender( workdir, chunk_size ):
     workdir = Path(workdir)
     print("running blender...")
     out = subprocess.run(f'cd {Path(__file__).parent.parent.joinpath("blender")} &&'
-                   f'/home/twak/lib/blender/blender -b pts_to_mesh_{chunk_size}.blend --python blender_pts_to_mesh_{chunk_size}.py -- '
+                   f'{utils.blender_binary} -b pts_to_mesh_{chunk_size}.blend --python blender_pts_to_mesh_{chunk_size}.py -- '
                    f'--cycles-device OPTIX --root="{workdir.parent}" --name="{workdir.name}"',
                    shell=True, executable='/bin/bash')
 

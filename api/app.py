@@ -227,7 +227,7 @@ def find_pavement():
     height = (float (vals['n']) - float(vals['s'])) * float(vals['scale'])
     width  = (float(vals['e']) - float(vals['w'])) * float(vals['scale'])
 
-    return redirect(f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
+    return redirect(f"{utils.geoserver_url}geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
                         f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_pavement_orthomosaics&exceptions=application%2Fvnd.ogc.se_inimage&"
                         f"SRS=EPSG%3A27700&WIDTH={int(width)}&HEIGHT={int(height)}"
                         f"&BBOX={vals['w']}%2C{vals['s']}%2C{vals['e']}%2C{vals['n']}", code=302)
@@ -250,7 +250,7 @@ def find_aerial():
     height = (float(vals['n']) - float(vals['s'])) * float(vals['scale'])
     width = (float(vals['e']) - float(vals['w'])) * float(vals['scale'])
 
-    return redirect(f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
+    return redirect(f"{utils.geoserver_url}geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
                         f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_aerial&exceptions=application%2Fvnd.ogc.se_inimage&"
                         f"SRS=EPSG%3A27700&WIDTH={int(width)}&HEIGHT={int(height)}"
                         f"&BBOX={vals['w']}%2C{vals['s']}%2C{vals['e']}%2C{vals['n']}", code=302)

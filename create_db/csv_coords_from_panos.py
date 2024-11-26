@@ -1,10 +1,11 @@
 import os
 import PIL.Image
+from api import utils
 
 if __name__ == '__main__':
 
     dirr = "/home/twak/citnas/06. Data/4. Roads/Cambridge University - National Highways Data/Original Data (from KOREC)/Images_Point_Clouds/A14 EB-WB J47A (Woolpit) to Haugley Bridge/Panoramic_Imagery/panorama-geotagged"
-    with open("/home/twak/Downloads/coords.txt", "w") as fp:
+    with open(f"{utils.scratch}/coords.txt", "w") as fp:
         for file in os.listdir(dirr):
             if file.endswith(".jpg"):
                 print (f"\n\n{file}")

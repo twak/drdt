@@ -61,7 +61,7 @@ def merge_and_filter_pts(workdir,  x,y, name):
 
 gprs = f"{utils.nas_mount_w}{utils.gpr_route}"
 chunk_size = 10 # meters
-scratch = "/home/twak/Downloads/foo"
+scratch = f"{utils.scratch}/foo"
 table_name = "a14_gpr_chunks"
 
 defect_chunks = f"{utils.nas_mount_w}{utils.gpr_defect_route}"

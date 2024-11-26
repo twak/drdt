@@ -3,7 +3,7 @@ import sys
 import bpy
 import os, sys
 import shutil
-
+from ..api import utils
 """
 converts merged point clouds + textures into an fbx file
 
@@ -13,7 +13,7 @@ see pts_to_mesh.py/.blend for more info.
 
 
 name = "w_1"  # debug!
-root = f"/home/twak/Downloads/foo"
+root = f"{utils.scratch}/foo"
 
 for s in sys.argv[1:]:
     if s.startswith("--name="):

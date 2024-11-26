@@ -3,10 +3,11 @@ import shutil
 import bpy
 import json, os
 import urllib.request
+from ..api import utils
 
-scratch = "/home/twak/Downloads/mesh_test"
+
+scratch = f"{utils.scratch}/mesh_test"
 os.makedirs(scratch, exist_ok=True)
-
 
 global runs    
 runs = 0

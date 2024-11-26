@@ -32,7 +32,7 @@ with Postgres() as pg2:
         obj_file = f"{utils.nas_mount_w}{nas}/mesh.obj"
 
         out = subprocess.run(f'cd {Path(__file__).parent.parent.joinpath("blender")} &&'
-                             f'/home/twak/lib/blender/blender -b --python blender_obj_to_fbx.py -- '
+                             f'{utils.blender_binary} -b --python blender_obj_to_fbx.py -- '
                              f'--input="{obj_file}"',
                              shell=True, executable='/bin/bash')
         if out.returncode != 0:

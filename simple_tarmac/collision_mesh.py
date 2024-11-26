@@ -82,7 +82,7 @@ def build_collision_mesh():
         obj_faces.append([i*2, i*2+1, i*2+2])
         obj_faces.append([i*2+2, i*2+1, i*2+3])
 
-    path = f"/home/twak/Downloads/collision_mesh"
+    path = f"{utils.scratch}/collision_mesh"
     os.makedirs(path, exist_ok=True)
     with open(f"{path}/mesh.obj", "w") as fp:
         fp.write(f"o road\n")

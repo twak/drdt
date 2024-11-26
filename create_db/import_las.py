@@ -117,9 +117,6 @@ def add_chunks_db(chunk_root, nas_path, use_hull=True):
 
 if __name__ == "__main__":
 
-    # chunk_root = "/home/twak/Downloads/meshing_test"
-    # nas_path = f"08. Researchers/tom/a14/las_chunks"
-
     curs = setup_db()
     add_chunks_db(utils.nas_mount+utils.las_path, utils.nas_mount, use_hull=False)
 

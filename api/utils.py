@@ -25,9 +25,16 @@ defect_route = f"{a14_root}mesh_defects"
 gpr_route = f"{a14_root}gpr_chunks"
 gpr_defect_route = f"{a14_root}gpr_defect_chunks"
 sign_route = f"{a14_root}signs"
+
+# update these for your system mounts
 nas_mount = f"/home/twak/citnas" # read only
 nas_mount_w = f"/home/twak/citnas2" # write
+blender_binary = "/home/twak/lib/blender/blender"
 
+# many scripts use this location to write local temporary files. They are often note deleted.
+scratch = "/home/twak/Downloads"
+
+# the server running the digital twin (can swap these for 129.169.73.137 after tom leaves)
 api_url = "http://dt.twak.org:5000/"
 geoserver_url = "http://dt.twak.org:8080/"
 

@@ -78,9 +78,9 @@ def run_blender( workdir ):
     # call blender to run the meshing script from its directory
     workdir = Path(workdir)
     print("running blender...")
-    # ~/lib/blender/blender  -b pts_to_mesh.blend --python blender_pts_to_mesh.py -- --cycles-device OPTIX --root="/home/twak/Downloads" --name="598550.0_262380.0"
+
     out = subprocess.run(f'cd {Path(__file__).parent.parent.joinpath("blender")} &&'
-                   f'/home/twak/lib/blender/blender -b pts_to_defect_mesh.blend --python blender_pts_to_defect_mesh.py -- '
+                   f'{utils.blender_binary} -b pts_to_defect_mesh.blend --python blender_pts_to_defect_mesh.py -- '
                    f'--cycles-device OPTIX --root="{workdir.parent}" --name="{workdir.name}"',
                    shell=True, executable='/bin/bash')
 
@@ -91,7 +91,7 @@ def go():
     mesh_chunks = f"{utils.nas_mount_w}{utils.defect_route}"
     table_name = "a14_mesh_defects"
     # chunk_size = 10
-    scratch = "/home/twak/Downloads/foo"
+    scratch = f"{utils.scratch}/foo"
 
     with Postgres(pass_file="pwd_rw.json") as pg:
 
