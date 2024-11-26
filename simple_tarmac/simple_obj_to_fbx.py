@@ -25,15 +25,15 @@ with Postgres() as pg2:
 
     for geom, name, nas, files, origin, existence, chunk_size in pg2.cur.fetchall():
 
-
+        print (f"processing {name}")
         geom = shapely.from_wkb(geom)
         origin = shapely.from_wkb(origin)
 
         obj_file = f"{utils.nas_mount_w}{nas}/mesh.obj"
 
         out = subprocess.run(f'cd {Path(__file__).parent.parent.joinpath("blender")} &&'
-                             f'/home/twak/lib/blender/blender --python blender_obj_to_fbx.py -- '
-                             f'--cycles-device OPTIX --input="{obj_file}"',
+                             f'/home/twak/lib/blender/blender -b --python blender_obj_to_fbx.py -- '
+                             f'--input="{obj_file}"',
                              shell=True, executable='/bin/bash')
         if out.returncode != 0:
             raise Exception("blender failed")
