@@ -16,8 +16,10 @@ sevenseven = 27700 # bng crs`
 sevenfour = 7405 # bng + height crs
 cur, con = None, None
 
+# location on the nas that the dt data is stored
 a14_root = "/08. Researchers/tom/a14/"
 
+# sub-folders for the various data types
 las_route = f"{a14_root}las_chunks"
 laso_route = f"{a14_root}laso_chunks"
 mesh_route = f"{a14_root}mesh_chunks"
@@ -26,13 +28,11 @@ gpr_route = f"{a14_root}gpr_chunks"
 gpr_defect_route = f"{a14_root}gpr_defect_chunks"
 sign_route = f"{a14_root}signs"
 
-# update these for your system mounts
-nas_mount = f"/home/twak/citnas" # read only
+# the location of various local files - update these for your system mounts!
+nas_mount = f"/home/twak/citnas" # read only (saftey! - I usually don't mount the writable one on my development box)
 nas_mount_w = f"/home/twak/citnas2" # write
 blender_binary = "/home/twak/lib/blender/blender"
-
-# many scripts use this location to write local temporary files. They are often note deleted.
-scratch = "/home/twak/Downloads"
+scratch = "/home/twak/Downloads" # many scripts use this location to write local temporary files. They are often not deleted...but aren't required once copied to the nas.
 
 # the server running the digital twin (can swap these for 129.169.73.137 after tom leaves)
 api_url = "http://dt.twak.org:5000/"

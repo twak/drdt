@@ -12,7 +12,7 @@ import bcrypt
 from flask import Response
 from . import app
 
-admin_users = ["twak"]
+admin_users = ["twak", "lilia"]
 
 class User(flask_login.UserMixin):
     pass
