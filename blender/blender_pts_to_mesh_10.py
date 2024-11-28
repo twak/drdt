@@ -1,8 +1,11 @@
 import sys
 
 import bpy
-import os, sys
-from ..api import utils
+
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'api'))
+import utils
 
 """
 Coverts "stage2" of the pts to mesh pipeline outputs to "stage3" using blender.

@@ -1,10 +1,8 @@
 import subprocess
-
-import shapely
+import sys
 
 from api.utils import Postgres
 from pathlib import Path
-import os
 import tarfile
 import api.utils as utils
 import shapely
@@ -19,7 +17,7 @@ with Postgres() as pg2:
 
     pg2.cur.execute(f"""
         SELECT geom, name, nas, files, origin, existence, chunk_size
-	    FROM public.a14_mesh_chunks
+	    FROM {mesh_table_name}
 	    WHERE chunk_size='simple_road-10-50-5x5'
 	""")
 

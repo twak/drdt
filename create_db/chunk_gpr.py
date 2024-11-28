@@ -4,7 +4,6 @@ from pathlib import Path
 import laspy
 from shapely.geometry import Polygon, Point
 import api.utils as utils
-import math
 
 """
 For all las files, this breaks them up into chunks.
@@ -37,11 +36,10 @@ def write_file(input_file, out_folder):
     subprocess.run(f'cd "{out_folder}" && pdal pipeline "{j}"', shell=True, executable='/bin/bash')
 
 table_name="a14_gpr_chunks_tmp"
-out = "/home/twak/citnas/08. Researchers/tom/a14/gpr_chunks_tmp/"
-ii = "/home/twak/citnas/06. Data/4. Roads/Cambridge University - National Highways Data/DRF Dataset FULL/05-GPR/GPR-A14EBWBJ47AWoolpittoHaugleyBridge"
+out = f"{utils.nas_mount_w}/08. Researchers/tom/a14/gpr_chunks_tmp/"
+ii  = f"{utils.nas_mount}/06. Data/4. Roads/Cambridge University - National Highways Data/DRF Dataset FULL/05-GPR/GPR-A14EBWBJ47AWoolpittoHaugleyBridge"
 
 if __name__ == "__main__":
-
 
     with utils.Postgres(pass_file="pwd_rw.json") as pg:
         curs = pg.cur
@@ -49,8 +47,6 @@ if __name__ == "__main__":
         curs.execute(f'DROP TABLE IF EXISTS {table_name}')
         print("...creating new table...")
         curs.execute(f'CREATE TABLE {table_name} (geom geometry, type text, name text, nas text, origin geometry(Point, {utils.sevenseven}))')
-
-
 
     for filename in os.listdir(ii):
         if filename.endswith(".ply"):
@@ -63,7 +59,6 @@ if __name__ == "__main__":
                 print(f'num_points:', fh.header.point_count)
                 if fh.header.point_count < 3:
                     continue
-
 
                 lasdata = fh.read().xyz[:, :2]  # 2d hull
 
@@ -81,10 +76,8 @@ if __name__ == "__main__":
                 ls = Polygon(boundary)
                 origin = Point(utils.round_down(mm[0]), utils.round_down(mm[1]))
 
-                # https://gis.stackexchange.com/questions/108533/insert-a-point-into-postgis-using-python
                 with utils.Postgres(pass_file="pwd_rw.json") as pg:
                     pg.cur.execute(
                         f'INSERT INTO {table_name}(geom, type, name, nas, origin)'
                         'VALUES (ST_SetSRID(%(geom)s::geometry, %(srid)s), %(type)s, %(name)s, %(nas)s, ST_SetSRID(%(origin)s::geometry, %(srid)s) )',
-                        {'geom': ls.wkb_hex, 'srid': 27700, 'type': 'point_cloud', 'name': filename, 'nas': f,
-                         'origin': origin.wkb_hex})
+                        {'geom': ls.wkb_hex, 'srid': 27700, 'type': 'point_cloud', 'name': filename, 'nas': f, 'origin': origin.wkb_hex})

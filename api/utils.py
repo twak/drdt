@@ -1,11 +1,9 @@
 import json
 import psycopg2
 import math
-import laspy
-from flask import request
+import numpy as np
 import os
 import subprocess
-import numpy as np
 
 """
 non-Flask utils
@@ -96,16 +94,6 @@ def min_max (lasdata):
 
 def round_down (x):
     return math.floor(x/10)*10
-
-def offset_las (lasfile, x, y):
-
-    las = laspy.read(lasfile)
-
-    las.header.offset = [x, y, 0]
-
-    with laspy.open(lasfile, mode="w", header=las.header) as writer:
-        writer.write_points(las.points)
-
 
 def build_commond_state():
 

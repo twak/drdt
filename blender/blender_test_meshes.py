@@ -1,9 +1,11 @@
 import shutil
-
 import bpy
-import json, os
+import json
 import urllib.request
-from ..api import utils
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'api'))
+import utils
 
 
 scratch = f"{utils.scratch}/mesh_test"

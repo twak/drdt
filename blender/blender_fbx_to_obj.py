@@ -1,9 +1,9 @@
-import os
-import sys
-from ..api import utils
 import bpy
 from pathlib import Path
-
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'api'))
+import utils
 
 workdir = f"{utils.scratch}/fbx_obj"
 os.makedirs(workdir, exist_ok=True)

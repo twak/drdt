@@ -1,16 +1,12 @@
-import sys
-
 import api.utils as utils
 from api.utils import Postgres
 from shapely import wkb, Polygon
 import shutil, os
-import urllib.request
-import uuid
 import subprocess
-from pathlib import Path
 import shapely
-from shapely.geometry import Point
 import laspy
+import create_db.chunk_gpr as chunk_gpr
+
 
 """
 This processes the chunked las files from gpr (chunk_gpr.py - about 20 files with pts in planes over each square) into 3D cubes of las files at the origin. 
@@ -26,7 +22,6 @@ def run_pdal_scripts_import(workdir, las_files, x, y, name):
         fp.write("[\n")
         for f in las_files:
             fp.write(  f'"{f}", \n')
-
 
         fp.write(f'''
                 {{
@@ -47,11 +42,9 @@ def run_pdal_scripts_import(workdir, las_files, x, y, name):
                 ]
                 ''')
 
-        # this requires pdal in the current path (use conda!)
+    # this requires pdal in the current path (use conda!)
     print("merging and filtering point clouds...")
     subprocess.run(f'cd {workdir} && pdal pipeline go_{name}.json', shell=True, executable='/bin/bash')
-
-import create_db.chunk_gpr as chunk_gpr
 
 def merge_and_filter_pts(workdir,  x,y, name):
 
@@ -179,6 +172,15 @@ def run_pdal_scripts_defects( workdir, x, y, area ):
     print("merging and filtering point clouds...")
     subprocess.run(f'cd {workdir} && pdal pipeline {workdir}/go_{klass}.json', shell=True, executable='/bin/bash')
 
+def offset_las (lasfile, x, y):
+
+    las = laspy.read(lasfile)
+
+    las.header.offset = [x, y, 0]
+
+    with laspy.open(lasfile, mode="w", header=las.header) as writer:
+        writer.write_points(las.points)
+
 def defects():
 
     os.makedirs(defect_chunks, exist_ok=True)
@@ -240,7 +242,7 @@ def defects():
                 if not os.path.exists(dest):
                     shutil.copy(os.path.join(utils.nas_mount + utils.gpr_route, y[1]), dest)
                     las_origin = wkb.loads(y[3])
-                    utils.offset_las(dest, las_origin.x, las_origin.y)
+                    offset_las(dest, las_origin.x, las_origin.y)
 
             # run pdal, merge and filter point clouds
             run_pdal_scripts_defects(workdir, origin[0], origin[1], buffer.wkt)

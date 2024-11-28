@@ -2,7 +2,10 @@ import bpy
 import sys
 from pathlib import Path
 import shutil
-from ..api import utils
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'api'))
+import utils
 
 for s in sys.argv[1:]:
     if s.startswith("--input="):

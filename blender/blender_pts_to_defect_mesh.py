@@ -1,9 +1,10 @@
-import sys
-
 import bpy
-import os, sys
 import shutil
-from ..api import utils
+
+import os
+import sys
+sys.path.append(os.path.join(os.path.dirname(__file__), '..', 'api'))
+import utils
 """
 converts merged point clouds + textures into an fbx file
 
