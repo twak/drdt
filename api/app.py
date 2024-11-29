@@ -20,8 +20,8 @@ def index():
     if flask_login.current_user.is_authenticated:
         return flask.redirect(flask.url_for('list_scenarios'))
 
-    out = ("<html><head><title>drdt</title></head><body><h4>i am drdt; a digital twin</h4>"
-          "<p><a href='/login'>login</a> | <a href='{utils.map_domain}'>map</a> | <a href='{utils.geoserver_url}'>geoserver</a> </p>")
+    out = (f"<html><head><title>drdt</title></head><body><h4>i am drdt; a digital twin</h4>"
+          f"<p><a href='/login'>login</a> | <a href='{utils.map_domain}'>map</a> | <a href='{utils.geoserver_url}'>geoserver</a> </p>")
 
     out += scenarios.list_endpoints()
 

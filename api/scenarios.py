@@ -228,7 +228,7 @@ def list_scenarios():
     with utils.Postgres() as pg:
 
         page += (f"<html><head><title>{human}'s scenarios</title></head><body>"
-                 f"<h4>{flask_login.current_user.id}</h4>"
+                 f"<h4>{flask_login.current_user.id} is logged into drdt; a digital twin</h4>"
                  f"<a href='{utils.map_domain}'>map</a>  "
                  f"| <a href='{utils.geoserver_url}'>geoserver</a> | "
                  f"<a href='/logout'>logout</a>")
