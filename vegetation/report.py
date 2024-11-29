@@ -26,7 +26,7 @@ def write_report(ip, i, path):
     magma = magma[:, :, :3]
 
     urllib.request.urlretrieve(  # background for vertical image
-        f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
+        f"{utils.geoserver_url}/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
         f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_aerial&exceptions=application%2Fvnd.ogc.se_inimage&"
         f"SRS=EPSG%3A27700&WIDTH={ip.integral_vert.shape[0]}&HEIGHT={ip.integral_vert.shape[1]}"
         f"&BBOX={path.bounds[0] - ip.vi_pad}%2C{path.bounds[1] - ip.vi_pad}%2C{path.bounds[2] + ip.vi_pad}%2C{path.bounds[3] + ip.vi_pad}",
@@ -36,7 +36,7 @@ def write_report(ip, i, path):
     map_path = os.path.join(ip.report_path, "map.png")
 
     urllib.request.urlretrieve(  # background for vertical image
-        f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
+        f"{utils.geoserver_url}/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
         f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_OS&exceptions=application%2Fvnd.ogc.se_inimage&"
         f"SRS=EPSG%3A27700&WIDTH={ip.integral_vert.shape[0]}&HEIGHT={ip.integral_vert.shape[1]}"
         f"&BBOX={path.bounds[0] - ip.vi_pad}%2C{path.bounds[1] - ip.vi_pad}%2C{path.bounds[2] + ip.vi_pad}%2C{path.bounds[3] + ip.vi_pad}",

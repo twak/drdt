@@ -228,11 +228,16 @@ def list_scenarios():
     with utils.Postgres() as pg:
 
         page += (f"<html><head><title>{human}'s scenarios</title></head><body>"
-                 f"<h4>{flask_login.current_user.id}</h4><a href='/logout'>logout</a>")
+                 f"<h4>{flask_login.current_user.id}</h4>"
+                 f"<a href='{utils.map_domain}'>map</a>  "
+                 f"| <a href='{utils.geoserver_url}'>geoserver</a> | "
+                 f"<a href='/logout'>logout</a>")
         if is_admin():
             page += (f" | <a href='/create_user'>create user</a>")
+            page += f"<p>postgres password: {flask_login.current_user.postgres}</p>"
 
-            page +=     f"<p>postgres password: {flask_login.current_user.postgres}</p>"
+
+
 
 
         page += f""" <h4>{human}'s scenarios</h4>

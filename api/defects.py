@@ -48,7 +48,7 @@ def show_cracks():
             res_y = bounds[3] - bounds[1]
             res = 20
 
-            url = (f"{utils.geoserver_url}geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
+            url = (f"{utils.geoserver_url}/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
                     f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_pavement_orthomosaics&exceptions=application%2Fvnd.ogc.se_inimage&"
                     f"SRS=EPSG%3A27700&WIDTH={int(res_x * res)}&HEIGHT={int(res_y * res)}&"
                     f"&BBOX={bounds[0]}%2C{bounds[1]}%2C{bounds[2]}%2C{bounds[3]}")

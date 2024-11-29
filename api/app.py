@@ -21,7 +21,7 @@ def index():
         return flask.redirect(flask.url_for('list_scenarios'))
 
     out = ("<html><head><title>drdt</title></head><body><h4>i am drdt; a digital twin</h4>"
-          "<p>would you like to <a href='/login'>login</a>?</p>")
+          "<p><a href='/login'>login</a> | <a href='{utils.map_domain}'>map</a> | <a href='{utils.geoserver_url}'>geoserver</a> </p>")
 
     out += scenarios.list_endpoints()
 
@@ -250,7 +250,7 @@ def find_aerial():
     height = (float(vals['n']) - float(vals['s'])) * float(vals['scale'])
     width = (float(vals['e']) - float(vals['w'])) * float(vals['scale'])
 
-    return redirect(f"{utils.geoserver_url}geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
+    return redirect(f"{utils.geoserver_url}/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
                         f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_aerial&exceptions=application%2Fvnd.ogc.se_inimage&"
                         f"SRS=EPSG%3A27700&WIDTH={int(width)}&HEIGHT={int(height)}"
                         f"&BBOX={vals['w']}%2C{vals['s']}%2C{vals['e']}%2C{vals['n']}", code=302)

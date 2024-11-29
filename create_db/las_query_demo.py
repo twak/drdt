@@ -41,7 +41,7 @@ else: ##### demo 2 - download a transperent PNG of the same area from geoserver
 
     w, h = 600, 600 # width and height of texture to download (adjust to the size of the area you're downloading).
 
-    url = (f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3Ageotiffs&exceptions=application%2Fvnd.ogc.se_inimage&"
+    url = (f"{utils.geoserver_url}/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3Ageotiffs&exceptions=application%2Fvnd.ogc.se_inimage&"
            f"SRS=EPSG%3A27700&WIDTH={w}&HEIGHT={h}&BBOX={nw[0]}%2C{se[1]}%2C{se[0]}%2C{nw[1]}")
 
 

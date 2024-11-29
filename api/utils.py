@@ -9,7 +9,11 @@ import subprocess
 non-Flask utils
 """
 
-domain = "http://dt.twak.org:5000"
+host = "dt.twak.org" # the server running the digital twin (can swap this for 129.169.73.137)
+api_url = domain = f"http://{host}:5000"
+map_domain = f"http://{host}:80"
+geoserver_url = f"http://{host}:8080/geoserver"
+
 sevenseven = 27700 # bng crs`
 sevenfour = 7405 # bng + height crs
 cur, con = None, None
@@ -32,9 +36,6 @@ nas_mount_w = f"/home/twak/citnas2" # write
 blender_binary = "/home/twak/lib/blender/blender"
 scratch = "/home/twak/Downloads" # many scripts use this location to write local temporary files. They are often not deleted...but aren't required once copied to the nas.
 
-# the server running the digital twin (can swap these for 129.169.73.137 after tom leaves)
-api_url = "http://dt.twak.org:5000/"
-geoserver_url = "http://dt.twak.org:8080/"
 
 start_time = "2024-06-10 00:00:00" # the start of now is the day tom joined dr.
 before_time_range = '{[2021-01-01,]}' # default creation date for cam-highway data

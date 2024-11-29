@@ -86,7 +86,7 @@ def build_mesh(pts, id, a, b, c, d, offset):
     # download the textures from geoserver
     urllib.request.urlretrieve(f"{utils.api_url}v0/pavement?w={lx}&s={ly}&e={hx}&n={hy}&scale={tex_scale}", os.path.join(path, "road.png"))
     urllib.request.urlretrieve(f"{utils.api_url}v0/aerial?w={lx}&s={ly}&e={hx}&n={hy}&scale={tex_scale}", os.path.join(path, "aerial.png"))
-    urllib.request.urlretrieve(f"http://dt.twak.org:8080/geoserver/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
+    urllib.request.urlretrieve(f"{utils.geoserver_url}/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
         f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_defects_cam&exceptions=application%2Fvnd.ogc.se_inimage&"
         f"SRS=EPSG%3A27700&WIDTH={int((hx - lx)* 100)}&HEIGHT={int((hy - ly)* 100)}"
         f"&BBOX={lx}%2C{ly}%2C{hx}%2C{hy}", os.path.join(path, "defect_mask.png"))
