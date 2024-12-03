@@ -22,6 +22,7 @@ chunk_las.py was combined into this 27.11.24.
 """
 
 # las_dir = "/06. Data/4. Roads/Cambridge University - National Highways Data/DRF Dataset FULL/01-PointClouds/PointCloud-A14EBWBJ47AWoolpittoHaugleyBridge/labelled"
+# road = "a14"
 las_dir = "/06. Data/4. Roads/Cambridge University - National Highways Data/DRF Dataset FULL/01-PointClouds/PointCloud-A11EBWBSpoonerstoBracklandRailwayA11EBWBBrecklandRailwaytoTuttles/labelled"
 road = "A11"
 work_dir = f"{utils.scratch}/pdal_jsons"
