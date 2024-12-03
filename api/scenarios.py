@@ -11,6 +11,7 @@ import uuid
 import bcrypt
 from flask import Response
 from . import app
+from .utils import Postgres
 
 admin_users = ["twak", "lilia"]
 
@@ -468,6 +469,65 @@ def list_endpoints():
     out +=  "</ul>"
 
     return out
+
+def build_commond_state():
+
+    scenario_name, vals, _ = get_scenario()
+
+    if vals is not None: # error
+        return vals, scenario_name
+
+    vals = get_nsew()
+    if isinstance(vals, str):
+        return vals, None
+
+    return vals, scenario_name
+
+
+def get_scenario (api_key=None):
+
+    vals = None # error message
+    scenario_name = None
+    user = None
+
+    with Postgres() as pg:
+
+        if api_key is None:
+            api_key = request.args.get('api_key', None)
+
+        if api_key is not None:
+
+            # user = scenarios.request_loader(request)
+            # if user is None:
+            #     vals = f"bad key"
+
+            pg.cur.execute(
+                f"SELECT scenario, human_name FROM public.scenarios WHERE api_key = '{api_key}'") # AND human_name='{user.id}'
+
+            row = pg.cur.fetchone()
+
+            if row:
+                scenario_name = row[0]
+                user = row[1]
+            else:
+                vals = f"bad api key"
+
+    return scenario_name, vals, user
+
+def get_nsew(other=[],opt={}):
+    vals = {}
+    for x in ['n', 'w', 's', 'e']+other:
+        if not x in request.args:
+            return f"missing parameters {x}"
+        vals[x]= request.args[x]
+
+    for x in opt.keys():
+        if x in request.args:
+            vals[x] = request.args[x]
+        else:
+            vals[x] = opt[x]
+
+    return vals
 
 # ALTER TABLE public."a14_defects_cam"
 # ADD existence tsmultirange;

@@ -6,10 +6,10 @@ import flask_login
 import shapely
 from flask import request
 
-from . import utils
+from . import utils, scenarios
 
 def time_and_scenario_query_api (table, location = None, cols=[], pg=None, name = "name", time=None, api_key="xxx"):
-    scenario_name, _, user = utils.get_scenario(api_key)
+    scenario_name, _, user = scenarios.get_scenario(api_key)
     return time_and_scenario_query(table, location, scenario_name, cols, pg, name, time, user_override=user)
 
 def time_and_scenario_query (table, location = None, scenario = None, cols=[], pg=None, name = "name", time=None, user_override=None):
@@ -115,7 +115,7 @@ def time_and_scenario_query (table, location = None, scenario = None, cols=[], p
 
 
 def find_mesh_x(table, extra_columns=None):
-    vals = utils.get_nsew()
+    vals = scenarios.get_nsew()
 
     if isinstance(vals, str):
         return vals, 500
@@ -131,7 +131,7 @@ def find_mesh_x(table, extra_columns=None):
                 SELECT  name, files, ST_AsText(origin) {ec}
                 FROM public."{table}"
                 WHERE ST_Intersects
-                ( geom, {envelope(vals)} )
+                ( geom, {utils.envelope(vals)} )
                 """)
 
         out = []

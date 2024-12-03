@@ -43,7 +43,7 @@ def find_las():
 
         each las file is at it's natural location in bng, so doesn't need to be relocated.
     """
-    vals, scenario_name = utils.build_commond_state()
+    vals, scenario_name = scenarios.build_commond_state()
 
     with utils.Postgres() as pg:
         results = time_and_scenario_query("a14_las_chunks", location=vals, scenario=scenario_name, pg=pg)
@@ -66,7 +66,7 @@ def find_laso():
         also 50m lower, and each point cloud is at the origin. So you have to apply the offset yourself
         when you display.
     """
-    vals, scenario_name = utils.build_commond_state()
+    vals, scenario_name = scenarios.build_commond_state()
 
     with utils.Postgres() as pg:
         results = time_and_scenario_query("a14_laso_chunks", location=vals, scenario=scenario_name, cols=['origin'], pg=pg)
@@ -97,7 +97,7 @@ def find_gpr():
         where w_601200.0_261730.0.las is the file to be displayed at the offset 601200.0, 261730.0
 
     """
-    vals, scenario_name = utils.build_commond_state()
+    vals, scenario_name = scenarios.build_commond_state()
 
     with utils.Postgres() as pg:
         results = time_and_scenario_query("a14_gpr_chunks", location=vals, scenario=scenario_name, cols=['origin'], pg=pg)
@@ -139,7 +139,7 @@ def find_mesh():
         These meshes are created using pts_to_mesh.py.
     """
 
-    vals, scenario_name = utils.build_commond_state()
+    vals, scenario_name = scenarios.build_commond_state()
     scale = "10"
     if 'scale' in request.args:
         scale = request.args.get('scale')
@@ -170,7 +170,7 @@ def find_defect():
         similar to find_mesh, but for defects.
         meshes are in : /citnas/08. Researchers/tom/a14/mesh_defects
     """
-    vals, scenario_name = utils.build_commond_state()
+    vals, scenario_name = scenarios.build_commond_state()
 
     with utils.Postgres() as pg:
         results = time_and_scenario_query("a14_mesh_chunks", location=vals, scenario=scenario_name, cols=['origin', 'files', 'gpr_nas'], pg=pg)
@@ -196,7 +196,7 @@ def find_signs():
 
         meshes are in : /citnas/08. Researchers/tom/a14/signs
     """
-    vals, scenario_name = utils.build_commond_state()
+    vals, scenario_name = scenarios.build_commond_state()
 
     with utils.Postgres() as pg:
         results = time_and_scenario_query("a14_signs", location=vals, scenario=scenario_name, cols=['origin', 'nas'], pg=pg)
@@ -218,7 +218,7 @@ def find_pavement():
 
         /v0/pavement?w=601158.9&n=261757.9&e=601205.6&s=261660.2&scale=10
     """
-    vals = utils.get_nsew(opt={"scale":1})
+    vals = scenarios.get_nsew(opt={"scale":1})
     if isinstance(vals, str):
         return vals # error
     for k in vals.keys():
@@ -241,7 +241,7 @@ def find_aerial():
 
         /v0/aerial?w=601158.9&n=261757.9&e=601205.6&s=261660.2&scale=10
     """
-    vals = utils.get_nsew(opt={"scale":10})
+    vals = scenarios.get_nsew(opt={"scale":10})
     if isinstance(vals, str)  :
         return vals # error
     for k in vals.keys():
