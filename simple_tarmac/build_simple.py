@@ -1,17 +1,15 @@
-import random
 import api.utils as utils
 from api.utils import Postgres
 import shapely
 from shapely.geometry import Polygon, LineString
 import numpy as np
 from pathlib import Path
+from PIL import Image
 import os
 import shutil
 import laspy
-import math
-import sys
 from vegetation.polyline import Polyline
-from api.utils import norm, perp_vector, perp_vector_triple
+from api.utils import perp_vector_triple
 import urllib.request
 
 """
@@ -20,8 +18,8 @@ This is Tom's DT/numpy implementation of Leo Binnis's algorithm.
 """
 
 wedge_length = 10
-wide, long = 5, 5
-tex_scale = 50
+wide, long = 20, 30
+tex_scale = 90 # pixels per meter
 out_root = "simple_road"
 chunk_size = f"{out_root}-{wedge_length}-{tex_scale}-{wide}x{long}" # database chunk_size column
 
@@ -81,15 +79,20 @@ def build_mesh(pts, id, a, b, c, d, offset):
         fp.write(f"Ks 0.0 0.0 0.0\n")
         fp.write(f"Ns 0.0\n")
         fp.write(f"illum 1\n")
-        fp.write(f"map_Kd road.png\n")
+        fp.write(f"map_Kd road.jpg\n")
 
     # download the textures from geoserver
-    urllib.request.urlretrieve(f"{utils.api_url}v0/pavement?w={lx}&s={ly}&e={hx}&n={hy}&scale={tex_scale}", os.path.join(path, "road.png"))
-    urllib.request.urlretrieve(f"{utils.api_url}v0/aerial?w={lx}&s={ly}&e={hx}&n={hy}&scale={tex_scale}", os.path.join(path, "aerial.png"))
+    road_png = os.path.join(path, "road.png")
+    urllib.request.urlretrieve(f"{utils.api_url}/v0/pavement?w={lx}&s={ly}&e={hx}&n={hy}&scale={tex_scale}", road_png)
+    urllib.request.urlretrieve(f"{utils.api_url}/v0/aerial?w={lx}&s={ly}&e={hx}&n={hy}&scale={tex_scale}", os.path.join(path, "aerial.png"))
     urllib.request.urlretrieve(f"{utils.geoserver_url}/ne/wms?SERVICE=WMS&VERSION=1.1.1&REQUEST=GetMap&"
         f"FORMAT=image%2Fpng&TRANSPARENT=true&STYLES&LAYERS=ne%3AA14_defects_cam&exceptions=application%2Fvnd.ogc.se_inimage&"
         f"SRS=EPSG%3A27700&WIDTH={int((hx - lx)* 100)}&HEIGHT={int((hy - ly)* 100)}"
         f"&BBOX={lx}%2C{ly}%2C{hx}%2C{hy}", os.path.join(path, "defect_mask.png"))
+
+    im = Image.open(road_png)
+    rgb_im = im.convert('RGB')
+    rgb_im.save(Path(road_png).with_suffix('.jpg'))
 
     return name, "mesh.obj;road.mtl;road.png;aerial.png;defect_mask.png"
 
@@ -269,7 +272,7 @@ def chunk_path():
             CREATE TABLE public.tmp (id text, geom geometry);
             """)
 
-        if mesh_table_name is not "a14_mesh_chunks":
+        if mesh_table_name != "a14_mesh_chunks":
             pg2.cur.execute(
                 f"""
                 DROP TABLE IF EXISTS public.{mesh_table_name};

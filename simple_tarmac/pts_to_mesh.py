@@ -143,8 +143,8 @@ def go():
                 merge_and_filter_pts (workdir, origin.x, origin.y)
 
                 # download textures
-                urllib.request.urlretrieve(f"{utils.api_url}v0/pavement?w={origin.x}&s={origin.y}&e={origin.x+chunk_size}&n={origin.y+chunk_size}&scale=100", os.path.join(workdir, "stage2", "pavement.png"))
-                urllib.request.urlretrieve(f"{utils.api_url}v0/aerial?w={origin.x}&s={origin.y}&e={origin.x + chunk_size}&n={origin.y + chunk_size}&scale=20", os.path.join(workdir, "stage2", "aerial.png"))
+                urllib.request.urlretrieve(f"{utils.api_url}/v0/pavement?w={origin.x}&s={origin.y}&e={origin.x+chunk_size}&n={origin.y+chunk_size}&scale=100", os.path.join(workdir, "stage2", "pavement.png"))
+                urllib.request.urlretrieve(f"{utils.api_url}/v0/aerial?w={origin.x}&s={origin.y}&e={origin.x + chunk_size}&n={origin.y + chunk_size}&scale=20", os.path.join(workdir, "stage2", "aerial.png"))
 
                 # create fbx files
                 file_str = []
