@@ -18,7 +18,7 @@ with Postgres() as pg2:
     pg2.cur.execute(f"""
         SELECT geom, name, nas, files, origin, existence, chunk_size
 	    FROM {mesh_table_name}
-	    WHERE chunk_size='simple_road-10-50-5x5'
+	    WHERE chunk_size='simple_road-10-90-20x30'
 	""")
 
     for geom, name, nas, files, origin, existence, chunk_size in pg2.cur.fetchall():

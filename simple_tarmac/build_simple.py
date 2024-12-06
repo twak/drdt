@@ -79,7 +79,8 @@ def build_mesh(pts, id, a, b, c, d, offset):
         fp.write(f"Ks 0.0 0.0 0.0\n")
         fp.write(f"Ns 0.0\n")
         fp.write(f"illum 1\n")
-        fp.write(f"map_Kd road.jpg\n")
+        fp.write(f"map_Kd road.png\n")
+        # fp.write(f"map_Td road_alpha.jpg\n")
 
     # download the textures from geoserver
     road_png = os.path.join(path, "road.png")
@@ -90,11 +91,13 @@ def build_mesh(pts, id, a, b, c, d, offset):
         f"SRS=EPSG%3A27700&WIDTH={int((hx - lx)* 100)}&HEIGHT={int((hy - ly)* 100)}"
         f"&BBOX={lx}%2C{ly}%2C{hx}%2C{hy}", os.path.join(path, "defect_mask.png"))
 
-    im = Image.open(road_png)
-    rgb_im = im.convert('RGB')
-    rgb_im.save(Path(road_png).with_suffix('.jpg'))
+    # im = Image.open(road_png)
+    # alpha = im.getchannel('A')
+    # rgb_im = im.convert('RGB')
+    # rgb_im.save(Path(road_png).with_suffix('.jpg'))
+    # alpha.save(Path(road_png).with_name('road_alpha').with_suffix('.jpg'))
 
-    return name, "mesh.obj;road.mtl;road.png;aerial.png;defect_mask.png"
+    return name, "mesh.obj;road.mtl;road.png"
 
 
 
